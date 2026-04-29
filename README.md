@@ -121,6 +121,7 @@ Veja `.env.example` para a lista canônica. Trocar antes do primeiro deploy:
 | `make typecheck` | tsc --noEmit |
 | `make format` | Prettier |
 | `make clean` | Limpa node_modules e builds |
+| `pnpm --filter @painel/jobs worker` | Sobe o worker BullMQ standalone |
 
 ---
 
@@ -152,7 +153,7 @@ Veja `.env.example` para a lista canônica. Trocar antes do primeiro deploy:
 | 2 | Auth (NextAuth v5) + matriz de permissões + middleware + 3 usuários | ✅ concluída |
 | 3 | Prisma schema completo + migrations + seed de domínio (14 837 sales) | ✅ concluída |
 | 4 | Conectores (ERP · CRM · SharePoint) + fixtures + 37 testes | ✅ concluída |
-| 5 | Jobs BullMQ + admin "Testar / Sincronizar agora" | ⏳ pendente |
+| 5 | Sync orchestration (BullMQ + adapter + tRPC + admin) | ✅ concluída |
 | 6 | UI · aba Negócio (KPIs, SSS macro, perfil, top clientes, UF YoY) | ⏳ pendente |
 | 7 | UI · aba Marca · Cidade (SSS por marca, perfil IBGE, top cidades) | ⏳ pendente |
 | 8 | UI · aba Produto · Estratégia (faixas, ABC, top 30, mix) | ⏳ pendente |

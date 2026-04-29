@@ -29,6 +29,15 @@ importers:
       '@microsoft/microsoft-graph-client':
         specifier: ^3.0.7
         version: 3.0.7
+      '@painel/connectors':
+        specifier: workspace:*
+        version: link:../../packages/connectors
+      '@painel/jobs':
+        specifier: workspace:*
+        version: link:../../packages/jobs
+      '@painel/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@prisma/client':
         specifier: ^5.22.0
         version: 5.22.0(prisma@5.22.0)
@@ -253,6 +262,9 @@ importers:
       '@painel/shared':
         specifier: workspace:*
         version: link:../shared
+      '@prisma/client':
+        specifier: ^5.22.0
+        version: 5.22.0(prisma@5.22.0)
       '@slack/web-api':
         specifier: ^7.7.0
         version: 7.15.1
@@ -263,8 +275,8 @@ importers:
         specifier: ^5.4.1
         version: 5.10.1
       nodemailer:
-        specifier: ^6.9.16
-        version: 6.10.1
+        specifier: ^7.0.7
+        version: 7.0.13
       pino:
         specifier: ^9.5.0
         version: 9.14.0
@@ -278,6 +290,9 @@ importers:
       '@types/nodemailer':
         specifier: ^6.4.16
         version: 6.4.23
+      tsx:
+        specifier: ^4.19.2
+        version: 4.21.0
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
@@ -3267,10 +3282,6 @@ packages:
 
   node-releases@2.0.38:
     resolution: {integrity: sha512-3qT/88Y3FbH/Kx4szpQQ4HzUbVrHPKTLVpVocKiLfoYvw9XSGOX2FmD2d6DrXbVYyAQTF2HeF6My8jmzx7/CRw==}
-
-  nodemailer@6.10.1:
-    resolution: {integrity: sha512-Z+iLaBGVaSjbIzQ4pX6XV41HrooLsQ10ZWPUehGmuantvzWoDVBnmsdUcOIDM1t+yPor5pDhVlDESgOMEGxhHA==}
-    engines: {node: '>=6.0.0'}
 
   nodemailer@7.0.13:
     resolution: {integrity: sha512-PNDFSJdP+KFgdsG3ZzMXCgquO7I6McjY2vlqILjtJd0hy8wEvtugS9xKRF2NWlPNGxvLCXlTNIae4serI7dinw==}
@@ -7329,8 +7340,6 @@ snapshots:
     optional: true
 
   node-releases@2.0.38: {}
-
-  nodemailer@6.10.1: {}
 
   nodemailer@7.0.13: {}
 

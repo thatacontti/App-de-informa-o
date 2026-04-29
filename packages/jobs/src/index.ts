@@ -1,5 +1,4 @@
-// @painel/jobs — BullMQ workers for ERP/CRM/XLSX sync, weekly briefing
-// and real-time goal-deviation alerts. Implementations land in step 5.
+// @painel/jobs — sync orchestration on top of @painel/connectors.
 
 export const JOB_NAMES = {
   syncErp: 'sync-erp',
@@ -10,3 +9,13 @@ export const JOB_NAMES = {
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
+
+export * from './adapter/upsert-sales';
+export * from './adapter/upsert-targets';
+export * from './sync/runner';
+export * from './sync/jobs';
+export * from './queues';
+export * from './scheduler';
+export * from './connection';
+export { configureSlack, postSlack } from './notifications/slack';
+export { configureEmail, sendEmail } from './notifications/email';

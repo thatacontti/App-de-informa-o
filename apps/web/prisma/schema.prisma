@@ -253,6 +253,7 @@ model Product {
 // rep, group, line, priceTier) hit indexed columns directly.
 model Sale {
   id              String      @id @default(cuid())
+  externalId      String      // unique key from the upstream source
   productSku      String
   customerId      String
   repId           String?
@@ -281,6 +282,7 @@ model Sale {
   city     City?           @relation(fields: [cityId], references: [id])
   uf       UF              @relation(fields: [ufId], references: [id])
 
+  @@unique([source, externalId])
   @@index([brand, date])
   @@index([ufId, date])
   @@index([customerId, date])
@@ -335,7 +337,7 @@ model SyncRun {
 model Target {
   id            String      @id @default(cuid())
   scope         TargetScope
-  scopeKey      String? // brand code, UF id, rep id, or null for GLOBAL
+  scopeKey      String      // brand code, UF id, rep id, or 'V27' for GLOBAL
   brand         Brand?
   ufId          String?
   repId         String?

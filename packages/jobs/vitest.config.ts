@@ -1,0 +1,16 @@
+import { defineConfig } from 'vitest/config';
+import * as path from 'node:path';
+
+export default defineConfig({
+  test: {
+    environment: 'node',
+    globals: true,
+    testTimeout: 30_000,
+  },
+  resolve: {
+    alias: {
+      '@painel/shared': path.resolve(__dirname, '../shared/src'),
+      '@painel/connectors': path.resolve(__dirname, '../connectors/src'),
+    },
+  },
+});

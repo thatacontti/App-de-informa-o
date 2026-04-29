@@ -304,7 +304,8 @@ async function seedSales(d: Fixture) {
   const cities = await prisma.city.findMany({ select: { id: true, name: true, ufId: true } });
   const cityByKey = new Map(cities.map((c) => [`${c.ufId}::${c.name}`, c.id]));
 
-  const rows = d.recs.map((r) => ({
+  const rows = d.recs.map((r, idx) => ({
+    externalId: `fixture-${idx}`,
     productSku: r.p,
     customerId: String(r.c),
     repId: repByName.get(r.rp) ?? null,

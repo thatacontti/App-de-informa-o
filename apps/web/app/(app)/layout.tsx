@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { UserBadge } from '@/components/auth/user-badge';
 import { TabsNav } from '@/components/app/tabs-nav';
+import { TrpcProvider } from '@/components/providers/trpc-provider';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -9,7 +10,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { name, email, role } = session.user;
 
   return (
-    <>
+    <TrpcProvider>
       <header className="bg-hero-gradient relative overflow-hidden px-12 pb-14 pt-12 text-paper">
         <div className="absolute right-[-10%] top-[-50%] h-[500px] w-[500px] rounded-full bg-[radial-gradient(circle,rgba(212,146,143,0.32)_0%,transparent_70%)]" />
         <div className="relative mx-auto flex max-w-[1500px] items-start justify-between gap-6">
@@ -28,9 +29,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </header>
 
-      <TabsNav />
+      <TabsNav role={role} />
 
       <main className="relative">{children}</main>
-    </>
+    </TrpcProvider>
   );
 }
