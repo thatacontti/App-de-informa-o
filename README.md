@@ -151,7 +151,7 @@ Veja `.env.example` para a lista canônica. Trocar antes do primeiro deploy:
 | 1 | Scaffold (monorepo · Next.js · Tailwind · paleta · Docker · Make) | ✅ concluída |
 | 2 | Auth (NextAuth v5) + matriz de permissões + middleware + 3 usuários | ✅ concluída |
 | 3 | Prisma schema completo + migrations + seed de domínio (14 837 sales) | ✅ concluída |
-| 4 | Conectores (ERP · CRM · SharePoint) com testes mock | ⏳ pendente |
+| 4 | Conectores (ERP · CRM · SharePoint) + fixtures + 37 testes | ✅ concluída |
 | 5 | Jobs BullMQ + admin "Testar / Sincronizar agora" | ⏳ pendente |
 | 6 | UI · aba Negócio (KPIs, SSS macro, perfil, top clientes, UF YoY) | ⏳ pendente |
 | 7 | UI · aba Marca · Cidade (SSS por marca, perfil IBGE, top cidades) | ⏳ pendente |
@@ -168,13 +168,33 @@ A cada etapa: rodar testes, commit convencional, atualizar a tabela acima.
 
 ## Como adicionar uma nova fonte de dados
 
-(Implementação real dos conectores chega na etapa 4.)
+A interface `SaleConnector` ou `TargetConnector` em
+`packages/connectors/src/types.ts` define o contrato. Os 3 conectores
+existentes servem como referência:
 
-1. Implementar `Connector` em `packages/connectors/src/<minha-fonte>.ts`
-   (interface em `packages/connectors/src/index.ts`)
-2. Adicionar registro em `DataSource` via `apps/web/prisma/seed.ts`
-3. Criar job em `packages/jobs/src/sync-<minha-fonte>.job.ts`
-4. Registrar no scheduler BullMQ (a infra de filas chega na etapa 5)
+- `ErpPostgresConnector` — `pg` + view `vw_painel_v27` (SQL documentada
+  em `packages/connectors/src/erp-postgres.ts > ERP_VIEW_SQL`)
+- `CrmApiConnector` — axios + axios-retry com backoff exponencial em
+  429/5xx, paginação `?page=N&per_page=200`
+- `SharePointXlsxConnector` — MS Graph (Client Credentials Flow) +
+  SheetJS, lê 3 abas `Metas_Globais` · `Metas_Marca` · `Metas_UF`
+
+Para uma quarta fonte:
+
+1. Implementar a classe em `packages/connectors/src/<minha-fonte>.ts`
+2. Plugar no `factory.ts` (`createSaleConnector` ou
+   `createTargetConnector`)
+3. Adicionar registro em `DataSource` via `apps/web/prisma/seed.ts`
+4. Cobrir com vitest (fixture + caminhos de erro + retry, se HTTP)
+5. Criar job em `packages/jobs/src/sync-<minha-fonte>.job.ts` (etapa 5)
+
+## Modo mock (`USE_MOCK_CONNECTORS=true`)
+
+Quando habilitado, o factory retorna `FixtureSaleConnector` (ERP/CRM) e
+`FixtureTargetConnector` (XLSX), que carregam `painel_v27/d_v12.json` e
+sintetizam metas a partir do snapshot. Isso destrava o desenvolvimento
+local sem precisar de credenciais do ERP / CRM / SharePoint, e mantém
+o caminho real plugável quando as credenciais aparecerem.
 
 ## Modelo de dados (resumo)
 
