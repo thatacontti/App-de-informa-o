@@ -1,0 +1,11 @@
+node_modules
+.next
+dist
+build
+out
+coverage
+playwright-report
+prisma/migrations
+painel_v27
+pnpm-lock.yaml
+*.min.*

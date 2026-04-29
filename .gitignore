@@ -1,0 +1,46 @@
+# deps
+node_modules/
+.pnpm-store/
+
+# build
+.next/
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# editors
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# test
+coverage/
+playwright-report/
+test-results/
+.playwright/
+
+# prisma
+prisma/migrations/dev.db*
+
+# generated
+apps/web/.next/
+apps/web/next-env.d.ts
+
+# docker
+.docker/

@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "incremental": true,
+    "jsx": "preserve",
+    "baseUrl": ".",
+    "paths": {
+      "@painel/connectors": ["packages/connectors/src/index.ts"],
+      "@painel/connectors/*": ["packages/connectors/src/*"],
+      "@painel/jobs": ["packages/jobs/src/index.ts"],
+      "@painel/jobs/*": ["packages/jobs/src/*"],
+      "@painel/shared": ["packages/shared/src/index.ts"],
+      "@painel/shared/*": ["packages/shared/src/*"]
+    }
+  }
+}

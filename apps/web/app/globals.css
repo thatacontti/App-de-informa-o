@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* shadcn/ui semantic tokens mapped to catarina palette (HSL) */
+    --background: 41 60% 96%;          /* cream  #faf5ed */
+    --foreground: 24 35% 7%;           /* ink-1  #1a0f0a */
+    --card: 42 75% 98%;                /* paper  #fefbf5 */
+    --card-foreground: 24 35% 7%;
+    --popover: 42 75% 98%;
+    --popover-foreground: 24 35% 7%;
+    --primary: 18 53% 20%;             /* deep   #4a2318 */
+    --primary-foreground: 42 75% 98%;
+    --secondary: 39 65% 91%;           /* beige  #f5ecd9 */
+    --secondary-foreground: 18 53% 20%;
+    --muted: 39 65% 91%;
+    --muted-foreground: 22 9% 53%;     /* ink-3  #8a7f74 */
+    --accent: 32 51% 65%;              /* amber  #d4a574 */
+    --accent-foreground: 18 53% 20%;
+    --destructive: 13 64% 44%;         /* rust   #b54a2a */
+    --destructive-foreground: 42 75% 98%;
+    --border: 32 51% 65% / 0.25;
+    --input: 32 51% 65% / 0.30;
+    --ring: 16 41% 39%;                /* terra  #8b4a3a */
+    --radius: 0.875rem;
+
+    /* Painel V27 raw palette (also exposed for components that bypass shadcn tokens) */
+    --c-cream: #faf5ed;
+    --c-paper: #fefbf5;
+    --c-beige: #f5ecd9;
+    --c-amber: #d4a574;
+    --c-burnt: #c9885f;
+    --c-terra: #8b4a3a;
+    --c-deep: #4a2318;
+    --c-sage: #6b8a5f;
+    --c-rust: #b54a2a;
+    --c-gold: #c9a855;
+    --c-ink-1: #1a0f0a;
+    --c-ink-2: #4a3a2f;
+    --c-ink-3: #8a7f74;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    @apply font-sans antialiased;
+  }
+  body {
+    @apply bg-cream text-ink-1;
+    font-feature-settings: 'tnum';
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(212, 165, 116, 0.08) 0%, transparent 60%),
+      radial-gradient(circle at 80% 70%, rgba(139, 74, 58, 0.06) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-fraunces), Fraunces, serif;
+    font-variation-settings: 'opsz' 144, 'SOFT' 30;
+  }
+  .num-tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+}
