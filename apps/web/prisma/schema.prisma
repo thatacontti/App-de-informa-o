@@ -1,7 +1,11 @@
-// Painel V27 · Prisma schema
-// Step 2 of 13 — adds the auth surface (User, AuditLog, Role).
-// Domain models (Sale, Customer, City, UF, Representative, Target,
-// BriefingSnapshot, DataSource, SyncRun) land in step 3.
+// Painel V27 · Prisma schema (full domain model — step 3 of 13)
+//
+// Surface mirrors the briefing section 4 with the additions found in
+// the real fixture (painel_v27/d_v12.json):
+//   - 6 customer profiles (VIP 3+, VIP, FREQUENTE, REGULAR, NOVO 25, NOVO 27)
+//   - 14 product groups
+//   - V26 revenue per (customer, brand) — separate model
+// Auth surface (User, AuditLog, Role) remains unchanged from step 2.
 
 generator client {
   provider = "prisma-client-js"
@@ -11,6 +15,10 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// =====================================================
+// AUTH (step 2)
+// =====================================================
 
 enum Role {
   ADMIN
@@ -33,10 +41,6 @@ model User {
   @@index([role])
 }
 
-// AuditLog records every sensitive action: login attempts (success/fail),
-// permission denials, manual sync triggers, briefing exports, user CRUD.
-// Schema is generic on purpose — `payload` is JSON so callers serialise
-// whatever context matters (target id, IP, attempted action, etc.).
 model AuditLog {
   id        String   @id @default(cuid())
   userId    String?
@@ -51,10 +55,313 @@ model AuditLog {
   @@index([action, createdAt])
 }
 
-// Step 1 placeholder kept so old migrations (if any) still apply.
-// Removed in step 3 once the full domain model lands.
-model HealthCheck {
+// =====================================================
+// DOMAIN ENUMS
+// =====================================================
+
+enum Brand {
+  KIKI
+  MA       // Menina Anjo
+  VALENT
+}
+
+enum ProductLine {
+  BEBE
+  PRIMEIROS_PASSOS
+  INFANTIL
+  TEEN
+}
+
+enum PriceTier {
+  ENTRADA
+  MEDIO    // Médio
+  PREMIUM
+}
+
+enum CustomerProfile {
+  VIP_3PLUS  // VIP 3+
+  VIP
+  FREQUENTE
+  REGULAR
+  NOVO_25
+  NOVO_27
+}
+
+enum BrazilRegion {
+  N
+  NE
+  CO
+  SE
+  S
+}
+
+enum IbgePopulationTier {
+  METRO     // > 1M
+  GRANDE    // 500k - 1M
+  MEDIA     // 100k - 500k
+  PEQUENA   // 20k - 100k
+  MICRO     // < 20k
+}
+
+enum DataSourceType {
+  ERP_DB
+  CRM_API
+  XLSX
+}
+
+enum SyncStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+enum TargetScope {
+  GLOBAL
+  BRAND
+  UF
+  REP
+}
+
+enum TargetUnit {
+  BRL
+  UNITS
+}
+
+// =====================================================
+// GEOGRAPHY
+// =====================================================
+
+model UF {
+  id     String       @id // 2-letter code (SP, RJ, ...)
+  name   String
+  region BrazilRegion
+
+  cities    City[]
+  customers Customer[]
+  reps      RepUF[]
+  sales     Sale[]
+  targets   Target[]
+}
+
+model City {
+  id        String             @id @default(cuid())
+  name      String
+  ufId      String
+  ibgeTier  IbgePopulationTier
+  popK      Int? // population in thousands (when known)
+
+  uf        UF         @relation(fields: [ufId], references: [id])
+  customers Customer[]
+  sales     Sale[]
+
+  @@unique([ufId, name])
+  @@index([ibgeTier])
+}
+
+// =====================================================
+// COMMERCIAL
+// =====================================================
+
+model Representative {
   id        String   @id @default(cuid())
-  ok        Boolean  @default(true)
+  fullName  String   @unique
+  shortName String
+  active    Boolean  @default(true)
   createdAt DateTime @default(now())
+
+  ufs       RepUF[]
+  customers Customer[]
+  sales     Sale[]
+  targets   Target[]
+}
+
+// Many-to-many between Representative and UF — a rep can cover several states.
+model RepUF {
+  repId String
+  ufId  String
+
+  rep Representative @relation(fields: [repId], references: [id], onDelete: Cascade)
+  uf  UF             @relation(fields: [ufId], references: [id])
+
+  @@id([repId, ufId])
+}
+
+model Customer {
+  id        String          @id // original ERP customer ID
+  code      String          @unique
+  name      String
+  profile   CustomerProfile
+  cityId    String?
+  repId     String?
+  ufId      String
+
+  city  City?           @relation(fields: [cityId], references: [id])
+  rep   Representative? @relation(fields: [repId], references: [id])
+  uf    UF              @relation(fields: [ufId], references: [id])
+  sales Sale[]
+  v26   CustomerBrandRevenue[]
+
+  @@index([profile])
+  @@index([ufId])
+  @@index([repId])
+}
+
+// V26 revenue per customer per brand — used as the "same store" baseline
+// for SSS calculations against V27 actuals (sales table).
+model CustomerBrandRevenue {
+  customerId String
+  brand      Brand
+  period     String   // 'V26' for now; future periods reuse the table
+  value      Decimal  @db.Decimal(14, 2)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@id([customerId, brand, period])
+  @@index([brand, period])
+}
+
+// =====================================================
+// PRODUCT
+// =====================================================
+
+model Product {
+  id           String      @id // SKU
+  sku          String      @unique
+  name         String
+  brand        Brand
+  line         ProductLine
+  productGroup String      // 14 groups: VESTIDO, MACAQUINHO, CONJUNTOS C/ SHORTS, etc.
+  coordSeason  String?     // RESORT 2027, SUNSET 2027, etc.
+  priceTier    PriceTier
+  unitPrice    Decimal?    @db.Decimal(10, 2) // PM (preço médio)
+  designer     String?
+  imageUrl     String?     // populated from sku_final.json on demand
+
+  sales Sale[]
+
+  @@index([brand, line])
+  @@index([priceTier])
+  @@index([productGroup])
+}
+
+// =====================================================
+// FACT TABLE
+// =====================================================
+
+// One row per (sku × customer × source-record). Denormalised for fast
+// analytical queries — most filters from the FilterSchema (brand, uf,
+// rep, group, line, priceTier) hit indexed columns directly.
+model Sale {
+  id              String      @id @default(cuid())
+  productSku      String
+  customerId      String
+  repId           String?
+  cityId          String?
+  ufId            String
+
+  // Denormalised facets — kept in-row to avoid joins on hot paths.
+  brand        Brand
+  productLine  ProductLine
+  productGroup String
+  priceTier    PriceTier
+
+  qty       Int
+  value     Decimal  @db.Decimal(14, 2) // V27 faturamento
+  cost      Decimal? @db.Decimal(14, 2)
+  unitCost  Decimal? @db.Decimal(10, 4)
+
+  date            DateTime
+  source          String   // 'fixture' | 'ERP_DB' | 'CRM_API' | 'XLSX'
+  sourceUpdatedAt DateTime
+  createdAt       DateTime @default(now())
+
+  product  Product         @relation(fields: [productSku], references: [sku])
+  customer Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  rep      Representative? @relation(fields: [repId], references: [id])
+  city     City?           @relation(fields: [cityId], references: [id])
+  uf       UF              @relation(fields: [ufId], references: [id])
+
+  @@index([brand, date])
+  @@index([ufId, date])
+  @@index([customerId, date])
+  @@index([productLine, date])
+  @@index([priceTier])
+  @@index([productSku])
+}
+
+// =====================================================
+// SYNC INFRASTRUCTURE
+// =====================================================
+
+model DataSource {
+  id               String         @id @default(cuid())
+  type             DataSourceType
+  name             String
+  endpoint         String
+  configEncrypted  String?        // encrypted JSON for non-URL configs
+  frequencyMinutes Int            @default(5)
+  active           Boolean        @default(true)
+  lastSyncAt       DateTime?
+  lastSyncStatus   SyncStatus?
+  lastSyncError    String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  syncs SyncRun[]
+
+  @@unique([type, name])
+}
+
+model SyncRun {
+  id           String     @id @default(cuid())
+  dataSourceId String
+  startedAt    DateTime   @default(now())
+  finishedAt   DateTime?
+  recordsIn    Int        @default(0)
+  recordsOut   Int        @default(0)
+  status       SyncStatus @default(RUNNING)
+  errorMessage String?
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+
+  @@index([dataSourceId, startedAt])
+  @@index([status])
+}
+
+// =====================================================
+// PLANNING
+// =====================================================
+
+model Target {
+  id            String      @id @default(cuid())
+  scope         TargetScope
+  scopeKey      String? // brand code, UF id, rep id, or null for GLOBAL
+  brand         Brand?
+  ufId          String?
+  repId         String?
+  period        String // 'V27', '2026-04', etc.
+  unit          TargetUnit  @default(BRL)
+  valueTarget   Decimal     @db.Decimal(14, 2)
+  valueAchieved Decimal     @db.Decimal(14, 2) @default(0)
+  updatedAt     DateTime    @updatedAt
+
+  uf  UF?             @relation(fields: [ufId], references: [id])
+  rep Representative? @relation(fields: [repId], references: [id])
+
+  @@unique([scope, scopeKey, period, unit])
+  @@index([scope, period])
+}
+
+model BriefingSnapshot {
+  id            String   @id @default(cuid())
+  generatedAt   DateTime @default(now())
+  generatedBy   String? // userId
+  periodStart   DateTime
+  periodEnd     DateTime
+  headlinesJson Json
+  risksJson     Json
+  decisionsJson Json
+  pdfPath       String?
+
+  @@index([generatedAt])
 }

@@ -150,7 +150,7 @@ Veja `.env.example` para a lista canônica. Trocar antes do primeiro deploy:
 |---|---|---|
 | 1 | Scaffold (monorepo · Next.js · Tailwind · paleta · Docker · Make) | ✅ concluída |
 | 2 | Auth (NextAuth v5) + matriz de permissões + middleware + 3 usuários | ✅ concluída |
-| 3 | Prisma schema completo + migrations + seed de domínio | ⏳ pendente |
+| 3 | Prisma schema completo + migrations + seed de domínio (14 837 sales) | ✅ concluída |
 | 4 | Conectores (ERP · CRM · SharePoint) com testes mock | ⏳ pendente |
 | 5 | Jobs BullMQ + admin "Testar / Sincronizar agora" | ⏳ pendente |
 | 6 | UI · aba Negócio (KPIs, SSS macro, perfil, top clientes, UF YoY) | ⏳ pendente |
@@ -168,12 +168,52 @@ A cada etapa: rodar testes, commit convencional, atualizar a tabela acima.
 
 ## Como adicionar uma nova fonte de dados
 
-(Será documentado em detalhe na etapa 4.)
+(Implementação real dos conectores chega na etapa 4.)
 
 1. Implementar `Connector` em `packages/connectors/src/<minha-fonte>.ts`
-2. Adicionar registro em `DataSource` (Prisma) via seed
+   (interface em `packages/connectors/src/index.ts`)
+2. Adicionar registro em `DataSource` via `apps/web/prisma/seed.ts`
 3. Criar job em `packages/jobs/src/sync-<minha-fonte>.job.ts`
-4. Registrar no scheduler de jobs (BullMQ)
+4. Registrar no scheduler BullMQ (a infra de filas chega na etapa 5)
+
+## Modelo de dados (resumo)
+
+Schema completo em `apps/web/prisma/schema.prisma`. Tabelas principais:
+
+- **`Sale`** (fato) · 14 837 linhas no seed · indexada por (brand, date),
+  (ufId, date), (customerId, date), (productLine, date), (priceTier),
+  (productSku)
+- **`Customer`** · 301 no seed · ligado a `City`, `Representative`, `UF`
+- **`CustomerBrandRevenue`** · baseline V26 por (customer, brand) · 606
+  linhas · usada nas queries de SSS
+- **`Product`** · 358 SKUs · com `priceTier`, `line`, `productGroup`,
+  `coordSeason`, `designer`
+- **`City`** · 213 cidades · classificação IBGE (METRO / GRANDE / MEDIA
+  / PEQUENA / MICRO)
+- **`UF`** · 27 estados brasileiros (todos seedados, mesmo os 12 sem
+  vendas — pra dropdowns ficarem completos)
+- **`Representative`** + `RepUF` (M2M) · 26 representantes
+- **`DataSource`** · 3 (ERP, CRM, XLSX) · com `lastSyncAt`,
+  `lastSyncStatus`
+- **`SyncRun`** · histórico de sincronizações
+- **`Target`** · metas por escopo (GLOBAL / BRAND / UF / REP)
+- **`BriefingSnapshot`** · briefings semanais gerados (vazio até etapa 10)
+- **`User`**, **`AuditLog`** (auth — etapa 2)
+
+Validação dos números após `make seed`:
+
+```sql
+SELECT
+  ROUND(SUM(value), 0) AS fat,
+  SUM(qty) AS pecas,
+  COUNT(DISTINCT "productSku") AS skus,
+  COUNT(DISTINCT "customerId") AS clientes
+FROM "Sale";
+-- 4 788 607 · 60 437 · 358 · 301
+```
+
+SSS por marca (V26 baseline × V27 só de clientes recorrentes) bate
+exato com o protótipo: **KIKI +0,5 % · MA +5,9 % · VALENT −0,9 %**.
 
 ## Como adicionar um novo perfil de usuário
 
