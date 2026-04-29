@@ -149,7 +149,7 @@ Veja `.env.example` para a lista canônica. Trocar antes do primeiro deploy:
 | Etapa | Descrição | Status |
 |---|---|---|
 | 1 | Scaffold (monorepo · Next.js · Tailwind · paleta · Docker · Make) | ✅ concluída |
-| 2 | Auth + matriz de permissões + middleware | ⏳ pendente |
+| 2 | Auth (NextAuth v5) + matriz de permissões + middleware + 3 usuários | ✅ concluída |
 | 3 | Prisma schema completo + migrations + seed de domínio | ⏳ pendente |
 | 4 | Conectores (ERP · CRM · SharePoint) com testes mock | ⏳ pendente |
 | 5 | Jobs BullMQ + admin "Testar / Sincronizar agora" | ⏳ pendente |
@@ -177,11 +177,25 @@ A cada etapa: rodar testes, commit convencional, atualizar a tabela acima.
 
 ## Como adicionar um novo perfil de usuário
 
-(Será documentado em detalhe na etapa 2.)
+1. Adicionar o valor ao enum `Role` em `apps/web/prisma/schema.prisma`
+   e ao tipo `Role` em `packages/shared/src/index.ts`
+2. Acrescentar uma coluna no `PERMISSION_MATRIX` em
+   `apps/web/lib/permissions.ts` com o nível para cada `Action`
+3. Adicionar os testes correspondentes em
+   `apps/web/lib/__tests__/permissions.test.ts` e em
+   `apps/web/e2e/permissions.spec.ts`
+4. `pnpm prisma migrate dev` e `pnpm prisma db seed` para criar um
+   usuário de exemplo com o novo papel
 
-1. Adicionar valor ao enum `Role` em `prisma/schema.prisma`
-2. Atualizar a matriz em `apps/web/lib/permissions.ts`
-3. Cobrir com teste e2e
+## Trocar senha inicial
+
+O seed cria três usuários com senha **`Catarina2026!`**. **Antes do
+primeiro deploy em produção**:
+
+1. Logar como Admin
+2. Trocar a senha de cada conta (ou criar contas reais e desativar as
+   de seed marcando `active: false` direto no Prisma Studio)
+3. Re-emitir `NEXTAUTH_SECRET` com `openssl rand -base64 32`
 
 ## Como reverter um deploy
 

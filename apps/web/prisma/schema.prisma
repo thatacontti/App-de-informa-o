@@ -1,7 +1,7 @@
 // Painel V27 · Prisma schema
-// Placeholder for step 1 (scaffold). Full domain model lands in step 3.
-// Models referenced by future steps: User, AuditLog, DataSource, SyncRun,
-// Sale, Customer, City, UF, Representative, Target, BriefingSnapshot.
+// Step 2 of 13 — adds the auth surface (User, AuditLog, Role).
+// Domain models (Sale, Customer, City, UF, Representative, Target,
+// BriefingSnapshot, DataSource, SyncRun) land in step 3.
 
 generator client {
   provider = "prisma-client-js"
@@ -12,9 +12,47 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ---- placeholder ----
-// One model so `prisma generate` succeeds during scaffold;
-// gets replaced by the full schema in step 3.
+enum Role {
+  ADMIN
+  GESTOR
+  ANALISTA
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(ANALISTA)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  auditLogs AuditLog[]
+
+  @@index([role])
+}
+
+// AuditLog records every sensitive action: login attempts (success/fail),
+// permission denials, manual sync triggers, briefing exports, user CRUD.
+// Schema is generic on purpose — `payload` is JSON so callers serialise
+// whatever context matters (target id, IP, attempted action, etc.).
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  payload   Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+}
+
+// Step 1 placeholder kept so old migrations (if any) still apply.
+// Removed in step 3 once the full domain model lands.
 model HealthCheck {
   id        String   @id @default(cuid())
   ok        Boolean  @default(true)

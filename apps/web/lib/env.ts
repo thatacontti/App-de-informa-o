@@ -19,5 +19,11 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });
 
-export const env = envSchema.parse(process.env);
+const result = envSchema.safeParse(process.env);
+if (!result.success) {
+  console.error('Invalid environment variables:', result.error.flatten().fieldErrors);
+  throw new Error('Invalid environment configuration. See .env.example for required keys.');
+}
+
+export const env = result.data;
 export type Env = z.infer<typeof envSchema>;
