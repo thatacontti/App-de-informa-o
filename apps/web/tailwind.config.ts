@@ -15,17 +15,17 @@ const config: Config = {
     },
     extend: {
       colors: {
-        // Painel V27 palette (catarina)
-        cream: '#faf5ed',
-        paper: '#fefbf5',
-        beige: '#f5ecd9',
-        amber: { DEFAULT: '#d4a574', soft: 'rgba(212,165,116,0.15)' },
-        burnt: '#c9885f',
-        terra: '#8b4a3a',
-        deep: '#4a2318',
+        // Painel V27 palette (catarina) · rosé warm
+        cream: '#faf3ee',
+        paper: '#fef9f5',
+        beige: '#f5e1d9',
+        amber: { DEFAULT: '#d4928f', soft: 'rgba(212,146,143,0.15)' },
+        burnt: '#c97f7f',
+        terra: '#8b4a52',
+        deep: '#4a1f25',
         sage: '#6b8a5f',
-        rust: '#b54a2a',
-        gold: '#c9a855',
+        rust: '#b53a4a',
+        gold: '#c98e85',
         ink: { 1: '#1a0f0a', 2: '#4a3a2f', 3: '#8a7f74' },
         // shadcn/ui semantic tokens (mapped to palette)
         background: 'hsl(var(--background))',
@@ -53,8 +53,8 @@ const config: Config = {
       },
       backgroundImage: {
         'hero-gradient':
-          'linear-gradient(135deg, #3a1f15 0%, #5a2e22 35%, #8b4a3a 75%, #c9885f 100%)',
-        'kpi-stripe': 'linear-gradient(90deg, #d4a574, #8b4a3a)',
+          'linear-gradient(135deg, #3a1820 0%, #5a2735 35%, #8b4a52 75%, #c97f7f 100%)',
+        'kpi-stripe': 'linear-gradient(90deg, #d4928f, #8b4a52)',
       },
       keyframes: {
         fadeIn: {

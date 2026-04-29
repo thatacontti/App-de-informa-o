@@ -201,14 +201,18 @@ Os arquivos em `painel_v27/` (`template.html`, `styles.css`,
 são a fonte de verdade visual da v0. **Não devem ser editados** — toda a
 réplica visual acontece dentro de `apps/web/`.
 
-A paleta foi extraída de `painel_v27/styles.css` e está fixada em
-`apps/web/tailwind.config.ts` + `apps/web/app/globals.css`:
+A paleta original do `painel_v27/styles.css` foi deslocada para tons
+rosados (warm rosé) em `apps/web/tailwind.config.ts` + `app/globals.css`,
+preservando a hierarquia terra/cream do protótipo:
 
 ```
-cream  #faf5ed   paper  #fefbf5   beige  #f5ecd9
-amber  #d4a574   burnt  #c9885f   terra  #8b4a3a
-deep   #4a2318   sage   #6b8a5f   rust   #b54a2a
-gold   #c9a855
+cream  #faf3ee   paper  #fef9f5   beige  #f5e1d9
+amber  #d4928f   burnt  #c97f7f   terra  #8b4a52
+deep   #4a1f25   sage   #6b8a5f   rust   #b53a4a
+gold   #c98e85
 ```
+
+Sage permanece (verde fica complementar perfeito); marrons/âmbares
+viraram rosa-pêssego, terra ganhou nuance mauve, deep virou vinho profundo.
 
 Fontes: **Fraunces** (display), **IBM Plex Sans** (corpo), **JetBrains Mono** (números).
