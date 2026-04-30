@@ -1,4 +1,5 @@
 import { router } from '@/lib/trpc/server';
+import { briefingRouter } from './routers/briefing';
 import { dataSourcesRouter } from './routers/dataSources';
 import { mapaRouter } from './routers/mapa';
 import { marcaCidadeRouter } from './routers/marcaCidade';
@@ -13,6 +14,7 @@ export const appRouter = router({
   marcaCidade: marcaCidadeRouter,
   produto: produtoRouter,
   mapa: mapaRouter,
+  briefing: briefingRouter,
 });
 
 export type AppRouter = typeof appRouter;

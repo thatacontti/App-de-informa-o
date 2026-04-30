@@ -44,3 +44,7 @@ apps/web/next-env.d.ts
 
 # docker
 .docker/
+
+# briefing artefacts
+storage/briefings/
+apps/web/storage/

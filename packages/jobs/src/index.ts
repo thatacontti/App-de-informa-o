@@ -17,5 +17,6 @@ export * from './sync/jobs';
 export * from './queues';
 export * from './scheduler';
 export * from './connection';
+export * from './briefing';
 export { configureSlack, postSlack } from './notifications/slack';
 export { configureEmail, sendEmail } from './notifications/email';

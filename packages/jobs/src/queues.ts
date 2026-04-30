@@ -2,6 +2,7 @@ import { Queue, Worker, type Job } from 'bullmq';
 import type { Redis } from 'ioredis';
 import type { PrismaClient } from '@prisma/client';
 import { syncDataSource } from './sync/jobs';
+import { generateBriefing } from './briefing';
 
 export const QUEUE_NAMES = {
   sync: 'painel:sync',
@@ -15,8 +16,17 @@ export interface SyncJobData {
   triggeredByUserId?: string;
 }
 
+export interface BriefingJobData {
+  triggeredBy: 'scheduler' | 'manual';
+  triggeredByUserId?: string;
+}
+
 export function createSyncQueue(connection: Redis): Queue<SyncJobData> {
   return new Queue<SyncJobData>(QUEUE_NAMES.sync, { connection });
+}
+
+export function createBriefingQueue(connection: Redis): Queue<BriefingJobData> {
+  return new Queue<BriefingJobData>(QUEUE_NAMES.briefing, { connection });
 }
 
 export interface SyncWorkerEnv {
@@ -39,5 +49,22 @@ export function createSyncWorker(
       });
     },
     { connection, concurrency: env.concurrency ?? 2 },
+  );
+}
+
+export function createBriefingWorker(
+  db: PrismaClient,
+  connection: Redis,
+  opts: { storageDir?: string } = {},
+): Worker<BriefingJobData> {
+  return new Worker<BriefingJobData>(
+    QUEUE_NAMES.briefing,
+    async (job: Job<BriefingJobData>) => {
+      return generateBriefing(db, {
+        storageDir: opts.storageDir,
+        generatedBy: job.data.triggeredByUserId,
+      });
+    },
+    { connection, concurrency: 1 },
   );
 }

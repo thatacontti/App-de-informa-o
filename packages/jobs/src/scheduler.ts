@@ -46,3 +46,30 @@ export async function triggerSync(
   });
   return { jobId: job.id ?? 'unknown' };
 }
+
+import type { BriefingJobData } from './queues';
+
+/**
+ * Schedules the weekly briefing — every Monday at 07:00 (server timezone).
+ * Idempotent: removes any pre-existing repeatable with the same id first.
+ */
+export async function scheduleWeeklyBriefing(
+  queue: Queue<BriefingJobData>,
+): Promise<void> {
+  const jobId = 'scheduled:weekly-briefing';
+  const repeats = await queue.getRepeatableJobs();
+  for (const r of repeats) {
+    if (r.id === jobId) await queue.removeRepeatableByKey(r.key);
+  }
+  await queue.add(
+    'briefing',
+    { triggeredBy: 'scheduler' },
+    {
+      jobId,
+      // Monday 07:00
+      repeat: { pattern: '0 7 * * 1' },
+      removeOnComplete: { age: 30 * 24 * 60 * 60 },
+      removeOnFail: { age: 90 * 24 * 60 * 60 },
+    },
+  );
+}

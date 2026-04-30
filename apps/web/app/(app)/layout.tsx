@@ -4,6 +4,7 @@ import { UserBadge } from '@/components/auth/user-badge';
 import { TabsNav } from '@/components/app/tabs-nav';
 import { FilterBar } from '@/components/app/filter-bar';
 import { ViewModeToggle } from '@/components/app/view-mode-toggle';
+import { BriefingButton } from '@/components/app/briefing-button';
 import { TrpcProvider } from '@/components/providers/trpc-provider';
 import { FilterProvider } from '@/lib/filter-context';
 import { can } from '@/lib/permissions';
@@ -13,6 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!session?.user) redirect('/login');
   const { name, email, role } = session.user;
   const canToggle = can(role, 'view:diretoria-mode');
+  const canBriefing = can(role, 'export:briefing-pdf');
 
   return (
     <TrpcProvider>
@@ -33,7 +35,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </div>
             <div className="flex flex-col items-end gap-3">
               <UserBadge name={name} email={email} role={role} />
-              <ViewModeToggle />
+              <div className="flex items-center gap-3">
+                <ViewModeToggle />
+                {canBriefing && <BriefingButton />}
+              </div>
             </div>
           </div>
         </header>
