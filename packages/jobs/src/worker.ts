@@ -19,7 +19,9 @@ async function main() {
     useMock: process.env['USE_MOCK_CONNECTORS'] !== 'false',
     slackToken: process.env['SLACK_BOT_TOKEN'],
     slackAlertsChannel: process.env['SLACK_CHANNEL_ALERTS'],
+    slackDiretoriaChannel: process.env['SLACK_CHANNEL_DIRETORIA'],
     smtpHost: process.env['SMTP_HOST'],
+    smtpPort: process.env['SMTP_PORT'] ? Number(process.env['SMTP_PORT']) : undefined,
     smtpUser: process.env['SMTP_USER'],
     smtpPass: process.env['SMTP_PASS'],
     smtpFrom: process.env['SMTP_FROM'],
@@ -29,6 +31,7 @@ async function main() {
   configureSlack({ token: env.slackToken, defaultChannel: env.slackAlertsChannel });
   configureEmail({
     host: env.smtpHost,
+    port: env.smtpPort,
     user: env.smtpUser,
     pass: env.smtpPass,
     from: env.smtpFrom,
@@ -39,7 +42,9 @@ async function main() {
   const syncQueue = createSyncQueue(connection);
   const briefingQueue = createBriefingQueue(connection);
   const syncWorker = createSyncWorker(db, connection, { useMock: env.useMock });
-  const briefingWorker = createBriefingWorker(db, connection);
+  const briefingWorker = createBriefingWorker(db, connection, {
+    slackChannel: env.slackDiretoriaChannel,
+  });
 
   for (const w of [syncWorker, briefingWorker]) {
     w.on('ready', () => log.info({ name: w.name }, 'worker ready'));

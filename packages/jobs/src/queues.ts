@@ -52,10 +52,17 @@ export function createSyncWorker(
   );
 }
 
+export interface BriefingWorkerOpts {
+  storageDir?: string;
+  /** When true, scheduled briefings also email + post to Slack. */
+  distribute?: boolean;
+  slackChannel?: string;
+}
+
 export function createBriefingWorker(
   db: PrismaClient,
   connection: Redis,
-  opts: { storageDir?: string } = {},
+  opts: BriefingWorkerOpts = {},
 ): Worker<BriefingJobData> {
   return new Worker<BriefingJobData>(
     QUEUE_NAMES.briefing,
@@ -63,6 +70,9 @@ export function createBriefingWorker(
       return generateBriefing(db, {
         storageDir: opts.storageDir,
         generatedBy: job.data.triggeredByUserId,
+        // Manual triggers stay local; scheduled runs fan out.
+        distribute: opts.distribute ?? job.data.triggeredBy === 'scheduler',
+        slackChannel: opts.slackChannel,
       });
     },
     { connection, concurrency: 1 },

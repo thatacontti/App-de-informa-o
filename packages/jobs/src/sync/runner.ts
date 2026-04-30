@@ -18,6 +18,7 @@ import type {
 import { upsertSales, type UpsertSalesResult } from '../adapter/upsert-sales';
 import { upsertTargets, type UpsertTargetsResult } from '../adapter/upsert-targets';
 import { postSlack } from '../notifications/slack';
+import { checkAndAlertDeviations } from '../alerts/deviation';
 
 export interface SaleSyncResult {
   syncRunId: string;
@@ -87,6 +88,10 @@ export async function runSaleSync(
         },
       },
     });
+
+    // Fire-and-forget deviation alerts after a successful sale ingest.
+    // We swallow errors so the sync stays SUCCESS even if Slack misbehaves.
+    await checkAndAlertDeviations(db, { source: ds.type }).catch(() => undefined);
 
     return {
       syncRunId: run.id,

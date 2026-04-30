@@ -1,15 +1,17 @@
-// Briefing public API — engine + template + PDF renderer + the
-// composite generateBriefing() that runs all three end-to-end.
+// Briefing public API — engine + template + PDF renderer + distribution
+// + the composite generateBriefing() that runs all of them end-to-end.
 
 import * as path from 'node:path';
 import type { PrismaClient } from '@prisma/client';
 import { computeBriefing, persistBriefing, type BriefingPayload, type ComputeOpts } from './engine';
 import { renderBriefingHTML } from './template';
 import { renderPdfFromHtml, persistBriefingArtefact } from './pdf';
+import { distributeBriefing, type DistributeResult } from './distribute';
 
 export * from './engine';
 export { renderBriefingHTML } from './template';
 export { renderPdfFromHtml } from './pdf';
+export { distributeBriefing } from './distribute';
 
 export interface GenerateBriefingResult {
   briefingId: string;
@@ -18,6 +20,7 @@ export interface GenerateBriefingResult {
   format: 'pdf' | 'html-fallback';
   bytes: number;
   durationMs: number;
+  distribution?: DistributeResult;
 }
 
 export async function generateBriefing(
@@ -25,6 +28,9 @@ export async function generateBriefing(
   opts: ComputeOpts & {
     storageDir?: string;
     generatedBy?: string;
+    /** When true, also email + post-to-Slack the payload after persisting. */
+    distribute?: boolean;
+    slackChannel?: string;
   } = {},
 ): Promise<GenerateBriefingResult> {
   const t0 = Date.now();
@@ -38,6 +44,15 @@ export async function generateBriefing(
 
   await db.briefingSnapshot.update({ where: { id: briefing.id }, data: { pdfPath } });
 
+  let distribution: DistributeResult | undefined;
+  if (opts.distribute) {
+    distribution = await distributeBriefing(db, payload, {
+      pdfPath,
+      format,
+      slackChannel: opts.slackChannel,
+    });
+  }
+
   return {
     briefingId: briefing.id,
     payload,
@@ -45,6 +60,7 @@ export async function generateBriefing(
     format,
     bytes,
     durationMs: Date.now() - t0,
+    distribution,
   };
 }
 

@@ -18,5 +18,6 @@ export * from './queues';
 export * from './scheduler';
 export * from './connection';
 export * from './briefing';
+export * from './alerts/deviation';
 export { configureSlack, postSlack } from './notifications/slack';
 export { configureEmail, sendEmail } from './notifications/email';

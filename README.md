@@ -159,7 +159,7 @@ Veja `.env.example` para a lista canônica. Trocar antes do primeiro deploy:
 | 8 | UI · aba Produto · Estratégia (resumo, faixas, granular, mix, ABC, moodboard, ranks, insights) | ✅ concluída |
 | 9 | UI · aba Mapa de Ataque (Marca×Linha×Faixa + Marca×Linha×Tipo×Faixa) | ✅ concluída |
 | 10 | Briefing semanal + PDF (Puppeteer com fallback HTML) | ✅ concluída |
-| 11 | Notificações Slack/email + alerta de desvio em tempo real | ⏳ pendente |
+| 11 | Notificações Slack/email + alerta de desvio em tempo real | ✅ concluída |
 | 12 | E2E Playwright + screenshot diff vs protótipo | ⏳ pendente |
 | 13 | Deploy Docker + Nginx + README final + smoke prod | ⏳ pendente |
 
