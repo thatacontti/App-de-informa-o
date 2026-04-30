@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { checkLoginRate, clearLoginRate } from '@/lib/rate-limit';
 import type { Role } from '@painel/shared';
+import { authConfig } from '@/auth.config';
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -23,12 +24,8 @@ class TooManyAttemptsError extends CredentialsSignin {
   override code = 'too_many_attempts';
 }
 
-const EIGHT_HOURS = 8 * 60 * 60;
-
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  trustHost: true,
-  session: { strategy: 'jwt', maxAge: EIGHT_HOURS, updateAge: 60 * 60 },
-  pages: { signIn: '/login', error: '/login' },
+  ...authConfig,
   providers: [
     Credentials({
       name: 'credentials',
@@ -75,18 +72,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  callbacks: {
-    jwt: async ({ token, user }) => {
-      if (user) {
-        token.id = user.id;
-        token.role = user.role;
-      }
-      return token;
-    },
-    session: async ({ session, token }) => {
-      session.user.id = token.id as string;
-      session.user.role = token.role as Role;
-      return session;
-    },
-  },
 });

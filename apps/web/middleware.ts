@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import NextAuth from 'next-auth';
+import { authConfig } from '@/auth.config';
 import { actionForPath, can } from '@/lib/permissions';
+
+// Use the Edge-safe authConfig — the full auth.ts pulls in Prisma and
+// ioredis, both Node-only, which the middleware bundle can't ship.
+const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
@@ -18,7 +23,8 @@ export default auth((req) => {
     const url = req.nextUrl.clone();
     url.pathname = '/forbidden';
     url.searchParams.set('action', action);
-    return NextResponse.rewrite(url);
+    url.searchParams.set('from', pathname);
+    return NextResponse.redirect(url);
   }
 
   return NextResponse.next();

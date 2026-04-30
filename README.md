@@ -160,7 +160,7 @@ Veja `.env.example` para a lista canônica. Trocar antes do primeiro deploy:
 | 9 | UI · aba Mapa de Ataque (Marca×Linha×Faixa + Marca×Linha×Tipo×Faixa) | ✅ concluída |
 | 10 | Briefing semanal + PDF (Puppeteer com fallback HTML) | ✅ concluída |
 | 11 | Notificações Slack/email + alerta de desvio em tempo real | ✅ concluída |
-| 12 | E2E Playwright + screenshot diff vs protótipo | ⏳ pendente |
+| 12 | E2E Playwright (13 specs) + visual regressions (6 snapshots) | ✅ concluída |
 | 13 | Deploy Docker + Nginx + README final + smoke prod | ⏳ pendente |
 
 A cada etapa: rodar testes, commit convencional, atualizar a tabela acima.
