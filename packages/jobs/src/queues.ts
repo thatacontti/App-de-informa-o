@@ -5,9 +5,9 @@ import { syncDataSource } from './sync/jobs';
 import { generateBriefing } from './briefing';
 
 export const QUEUE_NAMES = {
-  sync: 'painel:sync',
-  briefing: 'painel:briefing',
-  alerts: 'painel:alerts',
+  sync: 'painel-sync',
+  briefing: 'painel-briefing',
+  alerts: 'painel-alerts',
 } as const;
 
 export interface SyncJobData {

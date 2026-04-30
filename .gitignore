@@ -45,6 +45,6 @@ apps/web/next-env.d.ts
 # docker
 .docker/
 
-# briefing artefacts
-storage/briefings/
-apps/web/storage/
+# briefing artefacts + demo captures (never committed)
+storage/
+**/storage/briefings/
