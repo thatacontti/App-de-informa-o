@@ -61,16 +61,16 @@ build-all:
 	docker compose build web worker
 
 migrate:
-	pnpm --filter web prisma migrate dev
+	pnpm --filter web exec prisma migrate dev
 
 migrate-deploy:
-	pnpm --filter web prisma migrate deploy
+	pnpm --filter web exec prisma migrate deploy
 
 seed:
-	pnpm --filter web prisma db seed
+	pnpm --filter web exec prisma db seed
 
 studio:
-	pnpm --filter web prisma studio
+	pnpm --filter web exec prisma studio
 
 test:
 	pnpm -r test

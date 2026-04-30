@@ -16,10 +16,10 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "test:e2e": "pnpm --filter web test:e2e",
-    "db:migrate": "pnpm --filter web prisma migrate dev",
-    "db:deploy": "pnpm --filter web prisma migrate deploy",
-    "db:seed": "pnpm --filter web prisma db seed",
-    "db:studio": "pnpm --filter web prisma studio",
+    "db:migrate": "pnpm --filter web exec prisma migrate dev",
+    "db:deploy": "pnpm --filter web exec prisma migrate deploy",
+    "db:seed": "pnpm --filter web exec prisma db seed",
+    "db:studio": "pnpm --filter web exec prisma studio",
     "format": "prettier --write ."
   },
   "devDependencies": {
