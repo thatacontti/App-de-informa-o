@@ -31,7 +31,7 @@ export function FilterProvider({
     () => ({
       filter,
       setFilter: (key, val) => {
-        setFilterState((prev) => {
+        setFilterState((prev: Filter) => {
           const next = { ...prev };
           if (val === undefined) delete next[key];
           else next[key] = val;
