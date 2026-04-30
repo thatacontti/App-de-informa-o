@@ -31,7 +31,7 @@ COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN pnpm --filter web prisma generate \
+RUN pnpm --filter web exec prisma generate \
   && pnpm --filter web build
 
 # ---------- web (Next.js standalone) ----------
