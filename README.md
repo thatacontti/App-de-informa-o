@@ -155,7 +155,7 @@ Veja `.env.example` para a lista canônica. Trocar antes do primeiro deploy:
 | 4 | Conectores (ERP · CRM · SharePoint) + fixtures + 37 testes | ✅ concluída |
 | 5 | Sync orchestration (BullMQ + adapter + tRPC + admin) | ✅ concluída |
 | 6 | UI · aba Negócio (KPIs, SSS macro com outliers, perfil, top 20, UF YoY) | ✅ concluída |
-| 7 | UI · aba Marca · Cidade (SSS por marca, perfil IBGE, top cidades) | ⏳ pendente |
+| 7 | UI · aba Marca · Cidade (SSS marca/linha/idade, perfil IBGE, matriz, top 15) | ✅ concluída |
 | 8 | UI · aba Produto · Estratégia (faixas, ABC, top 30, mix) | ⏳ pendente |
 | 9 | UI · aba Mapa de Ataque | ⏳ pendente |
 | 10 | Briefing semanal + PDF (Puppeteer) | ⏳ pendente |
