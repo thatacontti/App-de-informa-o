@@ -7,9 +7,6 @@
 export const ROLES = ['ADMIN', 'GESTOR', 'ANALISTA'] as const;
 export type Role = (typeof ROLES)[number];
 
-export const VIEW_MODES = ['DIRETORIA', 'PRODUTO'] as const;
-export type ViewMode = (typeof VIEW_MODES)[number];
-
 // ---------- Brand ----------
 
 export const BRANDS = ['KIKI', 'MA', 'VALENT'] as const;
@@ -173,3 +170,5 @@ export const fmtNum = (v: number) =>
 
 export const fmtPct = (v: number, digits = 1) =>
   `${v >= 0 ? '+' : ''}${v.toFixed(digits)}%`;
+
+export * from './filter';

@@ -19,7 +19,7 @@ const sampleSale = (overrides: Partial<NormalizedSale> = {}): NormalizedSale => 
   priceTier: 'MEDIO',
   designer: 'BRUNA',
   unitPrice: 86.21,
-  customerId: '99001',
+  customerId: 'adapter-test-99001',
   customerName: 'CLIENTE TESTE LTDA',
   customerProfile: 'REGULAR',
   repFullName: 'L N BANDEIRA LTDA',
@@ -40,8 +40,7 @@ describe.runIf(RUN_DB_TESTS)('upsertSales · against real Postgres', () => {
 
   afterAll(async () => {
     await db.sale.deleteMany({ where: { source: SOURCE } });
-    await db.customer.deleteMany({ where: { id: { startsWith: '99' } } });
-    await db.product.deleteMany({ where: { id: { startsWith: 'TST-' } } });
+    await db.customer.deleteMany({ where: { id: { in: ['adapter-test-99001'] } } });
     await db.$disconnect();
   });
 
@@ -61,7 +60,7 @@ describe.runIf(RUN_DB_TESTS)('upsertSales · against real Postgres', () => {
     expect(inserted).toHaveLength(2);
     expect(inserted.find((s) => s.externalId === 'erp-1')?.qty).toBe(7);
 
-    const customer = await db.customer.findUnique({ where: { id: '99001' } });
+    const customer = await db.customer.findUnique({ where: { id: 'adapter-test-99001' } });
     expect(customer?.name).toBe('CLIENTE TESTE LTDA');
     expect(customer?.profile).toBe('REGULAR');
   });

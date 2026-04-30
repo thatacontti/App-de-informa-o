@@ -154,7 +154,7 @@ Veja `.env.example` para a lista canônica. Trocar antes do primeiro deploy:
 | 3 | Prisma schema completo + migrations + seed de domínio (14 837 sales) | ✅ concluída |
 | 4 | Conectores (ERP · CRM · SharePoint) + fixtures + 37 testes | ✅ concluída |
 | 5 | Sync orchestration (BullMQ + adapter + tRPC + admin) | ✅ concluída |
-| 6 | UI · aba Negócio (KPIs, SSS macro, perfil, top clientes, UF YoY) | ⏳ pendente |
+| 6 | UI · aba Negócio (KPIs, SSS macro com outliers, perfil, top 20, UF YoY) | ✅ concluída |
 | 7 | UI · aba Marca · Cidade (SSS por marca, perfil IBGE, top cidades) | ⏳ pendente |
 | 8 | UI · aba Produto · Estratégia (faixas, ABC, top 30, mix) | ⏳ pendente |
 | 9 | UI · aba Mapa de Ataque | ⏳ pendente |

@@ -2,16 +2,10 @@ import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
 import type { Session } from 'next-auth';
 import type { Role } from '@painel/shared';
-import { auth } from '@/auth';
 import { can, type Action, ForbiddenError } from '@/lib/permissions';
 
 export interface TrpcContext {
   session: Session | null;
-}
-
-export async function createContext(): Promise<TrpcContext> {
-  const session = (await auth()) as Session | null;
-  return { session };
 }
 
 const t = initTRPC.context<TrpcContext>().create({

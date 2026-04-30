@@ -36,7 +36,7 @@ const sale = (id: string): NormalizedSale => ({
   productLine: 'INFANTIL',
   productGroup: 'VESTIDO',
   priceTier: 'MEDIO',
-  customerId: '99002',
+  customerId: 'runner-test-99002',
   customerName: 'CLIENTE RUNNER LTDA',
   customerProfile: 'VIP',
   ufId: 'SP',
@@ -69,8 +69,8 @@ describe.runIf(RUN_DB_TESTS)('runSaleSync · lifecycle', () => {
 
   afterAll(async () => {
     await db.dataSource.delete({ where: { id: dataSourceId } }).catch(() => {});
-    await db.sale.deleteMany({ where: { customerId: '99002' } });
-    await db.customer.deleteMany({ where: { id: '99002' } });
+    await db.sale.deleteMany({ where: { customerId: 'runner-test-99002' } });
+    await db.customer.deleteMany({ where: { id: 'runner-test-99002' } });
     await db.product.deleteMany({ where: { id: 'TST-1' } });
     await db.$disconnect();
   });
