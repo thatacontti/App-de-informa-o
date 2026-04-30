@@ -395,7 +395,8 @@ async function computeUfYoY(
     if (!m) continue;
     const total = Object.values(m).reduce((s, v) => s + (v ?? 0), 0);
     if (filter.brand) {
-      v26ByUf.set(ufId, (v26ByUf.get(ufId) ?? 0) + (m[filter.brand] ?? 0));
+      const brand: Brand = filter.brand;
+      v26ByUf.set(ufId, (v26ByUf.get(ufId) ?? 0) + (m[brand] ?? 0));
     } else {
       v26ByUf.set(ufId, (v26ByUf.get(ufId) ?? 0) + total);
     }
