@@ -156,7 +156,7 @@ Veja `.env.example` para a lista canônica. Trocar antes do primeiro deploy:
 | 5 | Sync orchestration (BullMQ + adapter + tRPC + admin) | ✅ concluída |
 | 6 | UI · aba Negócio (KPIs, SSS macro com outliers, perfil, top 20, UF YoY) | ✅ concluída |
 | 7 | UI · aba Marca · Cidade (SSS marca/linha/idade, perfil IBGE, matriz, top 15) | ✅ concluída |
-| 8 | UI · aba Produto · Estratégia (faixas, ABC, top 30, mix) | ⏳ pendente |
+| 8 | UI · aba Produto · Estratégia (resumo, faixas, granular, mix, ABC, moodboard, ranks, insights) | ✅ concluída |
 | 9 | UI · aba Mapa de Ataque | ⏳ pendente |
 | 10 | Briefing semanal + PDF (Puppeteer) | ⏳ pendente |
 | 11 | Notificações Slack/email + alerta de desvio em tempo real | ⏳ pendente |
