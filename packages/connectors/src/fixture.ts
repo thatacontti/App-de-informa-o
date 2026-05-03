@@ -101,6 +101,7 @@ export class FixtureSaleConnector implements SaleConnector {
       unitCost: r.cu,
       date: SNAPSHOT_DATE,
       sourceUpdatedAt: SNAPSHOT_DATE,
+      collection: 'V27',
     };
   }
 

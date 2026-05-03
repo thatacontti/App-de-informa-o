@@ -322,6 +322,7 @@ async function seedSales(d: Fixture) {
     date: SNAPSHOT_DATE,
     source: 'fixture',
     sourceUpdatedAt: SNAPSHOT_DATE,
+    collection: 'V27',
   }));
 
   // Postgres caps parameters per statement; chunk the bulk insert.

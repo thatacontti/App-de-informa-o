@@ -41,6 +41,8 @@ export interface CrmDeal {
   unit_cost?: number | null;
   closed_at: string;
   updated_at: string;
+  /** Optional — when omitted by the upstream CRM we fall back to V27. */
+  collection?: string | null;
 }
 
 export interface CrmApiOptions {
@@ -151,6 +153,7 @@ export class CrmApiConnector implements SaleConnector {
       unitCost: d.unit_cost ?? undefined,
       date: new Date(d.closed_at),
       sourceUpdatedAt: new Date(d.updated_at),
+      collection: d.collection ?? 'V27',
     };
   }
 }

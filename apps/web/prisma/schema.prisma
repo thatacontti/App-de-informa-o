@@ -190,7 +190,9 @@ model Customer {
   id        String          @id // original ERP customer ID
   code      String          @unique
   name      String
-  profile   CustomerProfile
+  // Default for historic ingestion (CSV without classification). The
+  // active V26/V27 cycle overwrites it with the real profile.
+  profile   CustomerProfile @default(NOVO_27)
   cityId    String?
   repId     String?
   ufId      String
@@ -267,12 +269,16 @@ model Sale {
   priceTier    PriceTier
 
   qty       Int
-  value     Decimal  @db.Decimal(14, 2) // V27 faturamento
+  value     Decimal  @db.Decimal(14, 2) // faturamento da nota
   cost      Decimal? @db.Decimal(14, 2)
   unitCost  Decimal? @db.Decimal(10, 4)
 
+  // Coleção da venda (ex: "VERAO_2020", "INVERNO_2026"). Necessário
+  // pra comparar histórico ano-a-ano e filtrar coleções específicas.
+  collection      String
+
   date            DateTime
-  source          String   // 'fixture' | 'ERP_DB' | 'CRM_API' | 'XLSX'
+  source          String   // 'fixture' | 'ERP_DB' | 'CRM_API' | 'XLSX' | 'CSV_HISTORICO'
   sourceUpdatedAt DateTime
   createdAt       DateTime @default(now())
 
@@ -289,6 +295,8 @@ model Sale {
   @@index([productLine, date])
   @@index([priceTier])
   @@index([productSku])
+  @@index([collection, brand])
+  @@index([collection, date])
 }
 
 // =====================================================
