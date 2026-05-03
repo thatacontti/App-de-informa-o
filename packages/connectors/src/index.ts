@@ -8,3 +8,4 @@ export * from './sharepoint-xlsx';
 export * from './fixture';
 export * from './factory';
 export * from './csv-historico';
+export * from './base44';

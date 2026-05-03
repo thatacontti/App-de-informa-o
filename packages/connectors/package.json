@@ -10,6 +10,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@base44/sdk": "^0.8.27",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@painel/shared": "workspace:*",
     "axios": "^1.7.7",

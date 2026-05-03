@@ -10,9 +10,11 @@
     "test": "vitest run --passWithNoTests",
     "worker": "tsx src/worker.ts",
     "ingest:historico": "tsx src/scripts/ingest-historico.ts",
-    "classify:profiles": "tsx src/scripts/classify-profiles.ts"
+    "classify:profiles": "tsx src/scripts/classify-profiles.ts",
+    "peek:base44": "tsx src/scripts/peek-base44.ts"
   },
   "dependencies": {
+    "@base44/sdk": "^0.8.27",
     "@painel/connectors": "workspace:*",
     "@painel/shared": "workspace:*",
     "@prisma/client": "^5.22.0",
