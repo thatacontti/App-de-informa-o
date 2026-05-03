@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "worker": "tsx src/worker.ts",
-    "ingest:historico": "tsx src/scripts/ingest-historico.ts"
+    "ingest:historico": "tsx src/scripts/ingest-historico.ts",
+    "classify:profiles": "tsx src/scripts/classify-profiles.ts"
   },
   "dependencies": {
     "@painel/connectors": "workspace:*",

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  classifyProfiles,
   syncDataSource,
   testDataSource,
 } from '@painel/jobs';
@@ -78,5 +79,29 @@ export const dataSourcesRouter = router({
         { removeOnComplete: 50, removeOnFail: 50 },
       );
       return { jobId: job.id ?? 'unknown', queued: true as const };
+    }),
+
+  // Reclassifica CustomerProfile a partir do histórico de coleções.
+  // Usa as duas coleções mais recentes (por MAX(date)) como current /
+  // previous; o admin pode override via input quando precisar.
+  reclassifyProfiles: requireAction('admin:trigger-sync')
+    .input(
+      z
+        .object({
+          currentCollection: z.string().optional(),
+          previousCollection: z.string().optional(),
+          dryRun: z.boolean().optional(),
+        })
+        .optional(),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await db.auditLog.create({
+        data: {
+          userId: ctx.user.id,
+          action: 'profiles.reclassify',
+          payload: input ? { ...input } : {},
+        },
+      });
+      return classifyProfiles(db, input ?? {});
     }),
 });

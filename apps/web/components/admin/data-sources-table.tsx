@@ -46,6 +46,7 @@ export function DataSourcesTable({ role }: { role: Role }) {
   const test = trpc.dataSources.testConnection.useMutation();
   const trigger = trpc.dataSources.triggerSync.useMutation();
   const enqueue = trpc.dataSources.enqueueSync.useMutation();
+  const reclassify = trpc.dataSources.reclassifyProfiles.useMutation();
   const [feedback, setFeedback] = useState<{ id: string; ok: boolean; msg: string } | null>(null);
 
   const canTrigger = can(role, 'admin:trigger-sync');
@@ -192,6 +193,45 @@ export function DataSourcesTable({ role }: { role: Role }) {
           </tbody>
         </table>
       </div>
+
+      {canTrigger && (
+        <div className="flex items-center justify-between rounded-2xl border border-amber/15 bg-paper px-5 py-3.5">
+          <div>
+            <div className="font-medium text-deep">Reclassificar perfis de cliente</div>
+            <div className="text-[0.78rem] text-ink-3">
+              Recalcula <b>CustomerProfile</b> (VIP_3PLUS / VIP / FREQUENTE / REGULAR / NOVO_25 /
+              NOVO_27) a partir do histórico ingerido. Use após carregar uma coleção nova.
+            </div>
+          </div>
+          <Button
+            size="sm"
+            disabled={reclassify.isPending}
+            onClick={async () => {
+              reclassify.reset();
+              try {
+                const r = await reclassify.mutateAsync(undefined);
+                const dist = Object.entries(r.byProfile)
+                  .filter(([, n]) => n > 0)
+                  .map(([p, n]) => `${p}=${n}`)
+                  .join(' · ');
+                setFeedback({
+                  id: '_classify',
+                  ok: true,
+                  msg: `${r.totalCustomers} clientes · ${r.changed} reclassificados (${r.current ?? '—'} vs ${r.previous ?? '—'}). ${dist}`,
+                });
+              } catch (e) {
+                setFeedback({
+                  id: '_classify',
+                  ok: false,
+                  msg: `Falha: ${(e as Error).message}`,
+                });
+              }
+            }}
+          >
+            Reclassificar
+          </Button>
+        </div>
+      )}
 
       <div className="rounded-xl bg-beige/30 px-4 py-3 text-[0.72rem] text-ink-3">
         <strong className="text-terra">Modo mock</strong> · As 3 fontes leem de

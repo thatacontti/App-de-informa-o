@@ -19,5 +19,6 @@ export * from './scheduler';
 export * from './connection';
 export * from './briefing';
 export * from './alerts/deviation';
+export * from './classify/profiles';
 export { configureSlack, postSlack } from './notifications/slack';
 export { configureEmail, sendEmail } from './notifications/email';
