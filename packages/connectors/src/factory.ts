@@ -4,6 +4,7 @@
 
 import * as path from 'node:path';
 import { CrmApiConnector } from './crm-api';
+import { CsvHistoricoConnector } from './csv-historico';
 import { ErpPostgresConnector } from './erp-postgres';
 import { FixtureSaleConnector, FixtureTargetConnector } from './fixture';
 import { SharePointXlsxConnector } from './sharepoint-xlsx';
@@ -28,26 +29,37 @@ export function createSaleConnector(spec: DataSourceSpec, opts: FactoryOptions):
     throw new Error(`createSaleConnector does not handle XLSX — use createTargetConnector for ${spec.name}`);
   }
 
-  if (opts.useMock) {
+  // Mock mode applies only to live sources (ERP / CRM). The CSV histórico
+  // already reads from a fixed file so there's nothing to mock.
+  if (opts.useMock && spec.type !== 'CSV_HISTORICO') {
     return new FixtureSaleConnector({ type: spec.type, fixturesDir: opts.fixturesDir, name: spec.name });
   }
 
-  if (spec.type === 'ERP_DB') {
-    return new ErpPostgresConnector({
-      connectionString: spec.endpoint,
-      name: spec.name,
-      view: spec.config?.['view'],
-    });
-  }
+  switch (spec.type) {
+    case 'ERP_DB':
+      return new ErpPostgresConnector({
+        connectionString: spec.endpoint,
+        name: spec.name,
+        view: spec.config?.['view'],
+      });
 
-  // CRM_API
-  const token = spec.config?.['token'];
-  if (!token) throw new Error(`CRM connector ${spec.name} requires config.token`);
-  return new CrmApiConnector({
-    baseUrl: spec.endpoint,
-    token,
-    name: spec.name,
-  });
+    case 'CRM_API': {
+      const token = spec.config?.['token'];
+      if (!token) throw new Error(`CRM connector ${spec.name} requires config.token`);
+      return new CrmApiConnector({
+        baseUrl: spec.endpoint,
+        token,
+        name: spec.name,
+      });
+    }
+
+    case 'CSV_HISTORICO':
+      // `endpoint` is an absolute path to the CSV file inside the container.
+      return new CsvHistoricoConnector({
+        filePath: spec.endpoint,
+        name: spec.name,
+      });
+  }
 }
 
 export function createTargetConnector(spec: DataSourceSpec, opts: FactoryOptions): TargetConnector {

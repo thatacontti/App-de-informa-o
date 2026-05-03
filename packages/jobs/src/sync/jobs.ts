@@ -47,6 +47,18 @@ export async function syncCrmDataSource(
   return runSaleSync(db, dataSourceId, connector);
 }
 
+export async function syncCsvHistoricoDataSource(
+  db: PrismaClient,
+  dataSourceId: string,
+  env: SyncEnv,
+): Promise<SaleSyncResult> {
+  const ds = await db.dataSource.findUniqueOrThrow({ where: { id: dataSourceId } });
+  if (ds.type !== 'CSV_HISTORICO')
+    throw new Error(`syncCsvHistoricoDataSource: expected CSV_HISTORICO, got ${ds.type}`);
+  const connector = createSaleConnector(spec(ds), { useMock: env.useMock, fixturesDir: fixturesDir(env) });
+  return runSaleSync(db, dataSourceId, connector);
+}
+
 export async function syncMetasDataSource(
   db: PrismaClient,
   dataSourceId: string,
@@ -72,6 +84,8 @@ export async function syncDataSource(
       return syncCrmDataSource(db, dataSourceId, env);
     case 'XLSX':
       return syncMetasDataSource(db, dataSourceId, env);
+    case 'CSV_HISTORICO':
+      return syncCsvHistoricoDataSource(db, dataSourceId, env);
   }
 }
 

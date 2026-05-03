@@ -6,6 +6,7 @@ import {
   defaultFixturesDir,
 } from '../factory';
 import { CrmApiConnector } from '../crm-api';
+import { CsvHistoricoConnector } from '../csv-historico';
 import { ErpPostgresConnector } from '../erp-postgres';
 import { FixtureSaleConnector, FixtureTargetConnector } from '../fixture';
 import { SharePointXlsxConnector } from '../sharepoint-xlsx';
@@ -86,6 +87,23 @@ describe('factory · real mode', () => {
         { useMock: false, fixturesDir: FIXTURES_DIR },
       ),
     ).toThrow(/requires config/);
+  });
+
+  it('builds a CsvHistoricoConnector pointing at the configured file', () => {
+    const c = createSaleConnector(
+      { type: 'CSV_HISTORICO', name: 'historico-v01', endpoint: '/app/Pasta1_v01.csv' },
+      { useMock: false, fixturesDir: FIXTURES_DIR },
+    );
+    expect(c).toBeInstanceOf(CsvHistoricoConnector);
+    expect(c.type).toBe('CSV_HISTORICO');
+  });
+
+  it('CSV_HISTORICO ignores useMock — there is no live source to mock', () => {
+    const c = createSaleConnector(
+      { type: 'CSV_HISTORICO', name: 'historico-v01', endpoint: '/app/Pasta1_v01.csv' },
+      { useMock: true, fixturesDir: FIXTURES_DIR },
+    );
+    expect(c).toBeInstanceOf(CsvHistoricoConnector);
   });
 });
 

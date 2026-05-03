@@ -57,6 +57,9 @@ COPY --from=builder /app/apps/web/public ./apps/web/public
 COPY --from=builder /app/apps/web/prisma ./apps/web/prisma
 COPY --from=builder /app/apps/web/node_modules/.prisma ./apps/web/node_modules/.prisma
 COPY --from=builder /app/apps/web/node_modules/@prisma ./apps/web/node_modules/@prisma
+# Histórico de coleções — necessário pro CsvHistoricoConnector quando
+# o admin dispara Sincronizar nas DataSources de tipo CSV_HISTORICO.
+COPY --from=builder /app/Pasta1_v*.csv ./
 COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 RUN mkdir -p /app/apps/web/storage/briefings && chown -R painel:nodejs /app/apps/web/storage

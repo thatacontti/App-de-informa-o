@@ -27,6 +27,7 @@ function formatType(t: string) {
   if (t === 'ERP_DB') return 'ERP · Postgres';
   if (t === 'CRM_API') return 'CRM · REST';
   if (t === 'XLSX') return 'SharePoint · XLSX';
+  if (t === 'CSV_HISTORICO') return 'CSV · Histórico';
   return t;
 }
 

@@ -369,6 +369,7 @@ async function seedDataSources() {
     name: string;
     endpoint: string;
     frequencyMinutes: number;
+    active?: boolean;
   }> = [
     {
       type: 'ERP_DB',
@@ -388,12 +389,25 @@ async function seedDataSources() {
       endpoint: '/Diretoria/Metas/V27.xlsx',
       frequencyMinutes: 60 * 24, // daily
     },
+    // Histórico de coleções (2019-2025): inativos no scheduler — só
+    // rodam quando o admin clica em Sincronizar.
+    ...Array.from({ length: 9 }, (_, i) => {
+      const n = String(i + 1).padStart(2, '0');
+      return {
+        type: 'CSV_HISTORICO' as const,
+        name: `CSV · Histórico v${n}`,
+        endpoint: `/app/Pasta1_v${n}.csv`,
+        frequencyMinutes: 0,
+        active: false,
+      };
+    }),
   ];
   for (const s of sources) {
+    const { active, ...rest } = s;
     await prisma.dataSource.upsert({
       where: { type_name: { type: s.type, name: s.name } },
       update: { endpoint: s.endpoint, frequencyMinutes: s.frequencyMinutes },
-      create: { ...s, active: true },
+      create: { ...rest, active: active ?? true },
     });
   }
   return sources.length;
