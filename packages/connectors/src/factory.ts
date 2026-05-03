@@ -81,14 +81,27 @@ export function createSaleConnector(spec: DataSourceSpec, opts: FactoryOptions):
       });
 
     case 'BASE44_API': {
-      // `endpoint` = appId. config = { apiKey, entityName, mapperName,
-      // incrementalField? }. mapperName aponta pro registry acima.
-      const apiKey = spec.config?.['apiKey'];
-      const entityName = spec.config?.['entityName'];
-      const mapperName = spec.config?.['mapperName'];
-      if (!apiKey) throw new Error(`Base44 connector ${spec.name} requires config.apiKey`);
-      if (!entityName) throw new Error(`Base44 connector ${spec.name} requires config.entityName`);
-      if (!mapperName) throw new Error(`Base44 connector ${spec.name} requires config.mapperName`);
+      // Resolve cada campo na ordem: config (DB) → env var → default.
+      // Isso permite ativar a fonte só setando BASE44_API_KEY no Railway,
+      // sem precisar tocar no banco. configEncrypted continua sendo
+      // override por DataSource quando há múltiplas fontes Base44.
+      const apiKey =
+        spec.config?.['apiKey'] ?? process.env['BASE44_API_KEY'];
+      const entityName =
+        spec.config?.['entityName'] ?? process.env['BASE44_ENTITY_NAME'] ?? 'Sale';
+      const mapperName =
+        spec.config?.['mapperName'] ?? process.env['BASE44_MAPPER_NAME'] ?? 'sale-default';
+      const serverUrl =
+        spec.config?.['serverUrl'] ?? process.env['BASE44_SERVER_URL'] ?? undefined;
+      const incrementalField =
+        spec.config?.['incrementalField'] ?? process.env['BASE44_INCREMENTAL_FIELD'] ?? undefined;
+
+      if (!apiKey) {
+        throw new Error(
+          `Base44 connector ${spec.name}: api key ausente. Set BASE44_API_KEY no env do Railway, ` +
+            `ou popule configEncrypted.apiKey via Prisma Studio.`,
+        );
+      }
       const mapper = BASE44_MAPPERS.get(mapperName);
       if (!mapper) {
         throw new Error(
@@ -101,12 +114,8 @@ export function createSaleConnector(spec: DataSourceSpec, opts: FactoryOptions):
         apiKey,
         entityName,
         mapper,
-        ...(spec.config?.['incrementalField']
-          ? { incrementalField: spec.config['incrementalField'] }
-          : {}),
-        ...(spec.config?.['serverUrl']
-          ? { serverUrl: spec.config['serverUrl'] }
-          : {}),
+        ...(incrementalField ? { incrementalField } : {}),
+        ...(serverUrl ? { serverUrl } : {}),
         name: spec.name,
       });
     }
