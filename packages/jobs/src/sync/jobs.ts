@@ -59,6 +59,18 @@ export async function syncCsvHistoricoDataSource(
   return runSaleSync(db, dataSourceId, connector);
 }
 
+export async function syncBase44DataSource(
+  db: PrismaClient,
+  dataSourceId: string,
+  env: SyncEnv,
+): Promise<SaleSyncResult> {
+  const ds = await db.dataSource.findUniqueOrThrow({ where: { id: dataSourceId } });
+  if (ds.type !== 'BASE44_API')
+    throw new Error(`syncBase44DataSource: expected BASE44_API, got ${ds.type}`);
+  const connector = createSaleConnector(spec(ds), { useMock: env.useMock, fixturesDir: fixturesDir(env) });
+  return runSaleSync(db, dataSourceId, connector);
+}
+
 export async function syncMetasDataSource(
   db: PrismaClient,
   dataSourceId: string,
@@ -86,6 +98,8 @@ export async function syncDataSource(
       return syncMetasDataSource(db, dataSourceId, env);
     case 'CSV_HISTORICO':
       return syncCsvHistoricoDataSource(db, dataSourceId, env);
+    case 'BASE44_API':
+      return syncBase44DataSource(db, dataSourceId, env);
   }
 }
 

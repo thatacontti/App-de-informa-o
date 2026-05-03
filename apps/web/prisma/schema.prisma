@@ -108,6 +108,7 @@ enum DataSourceType {
   CRM_API
   XLSX
   CSV_HISTORICO
+  BASE44_API
 }
 
 enum SyncStatus {

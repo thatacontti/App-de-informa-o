@@ -38,7 +38,7 @@ export interface Base44ConnectorOptions {
 }
 
 export class Base44Connector implements SaleConnector {
-  readonly type = 'CRM_API' as const; // reusa o tipo CRM_API no DataSource enum
+  readonly type = 'BASE44_API' as const;
   readonly name: string;
   readonly entityName: string;
   readonly pageSize: number;

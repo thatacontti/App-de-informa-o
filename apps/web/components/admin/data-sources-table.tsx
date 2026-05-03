@@ -28,6 +28,7 @@ function formatType(t: string) {
   if (t === 'CRM_API') return 'CRM · REST';
   if (t === 'XLSX') return 'SharePoint · XLSX';
   if (t === 'CSV_HISTORICO') return 'CSV · Histórico';
+  if (t === 'BASE44_API') return 'Base44 · API';
   return t;
 }
 
@@ -127,7 +128,7 @@ export function DataSourcesTable({ role }: { role: Role }) {
                       >
                         Testar
                       </Button>
-                      {canTrigger && s.type === 'CSV_HISTORICO' && (
+                      {canTrigger && (s.type === 'CSV_HISTORICO' || s.type === 'BASE44_API') && (
                         // Heavy historic loads (~100k rows/file) always go
                         // through BullMQ — the HTTP request would time out
                         // before the inline upsert finished.
@@ -156,7 +157,7 @@ export function DataSourcesTable({ role }: { role: Role }) {
                           Enfileirar
                         </Button>
                       )}
-                      {canTrigger && s.type !== 'CSV_HISTORICO' && (
+                      {canTrigger && s.type !== 'CSV_HISTORICO' && s.type !== 'BASE44_API' && (
                         <Button
                           size="sm"
                           disabled={trigger.isPending}

@@ -3,12 +3,26 @@
 // packages/jobs free of the real-vs-mock branching.
 
 import * as path from 'node:path';
+import { Base44Connector, type Base44Mapper } from './base44';
 import { CrmApiConnector } from './crm-api';
 import { CsvHistoricoConnector } from './csv-historico';
 import { ErpPostgresConnector } from './erp-postgres';
 import { FixtureSaleConnector, FixtureTargetConnector } from './fixture';
 import { SharePointXlsxConnector } from './sharepoint-xlsx';
 import type { ConnectorType, SaleConnector, TargetConnector } from './types';
+
+// Registry de mappers Base44 — entity schema é app-specific, então
+// cada DataSource carrega `config.mapperName` apontando pra uma chave
+// daqui. Adicionar um novo app = registrar um mapper novo.
+const BASE44_MAPPERS = new Map<string, Base44Mapper>();
+
+export function registerBase44Mapper(name: string, mapper: Base44Mapper): void {
+  BASE44_MAPPERS.set(name, mapper);
+}
+
+export function getBase44Mapper(name: string): Base44Mapper | undefined {
+  return BASE44_MAPPERS.get(name);
+}
 
 export interface DataSourceSpec {
   type: ConnectorType;
@@ -59,6 +73,34 @@ export function createSaleConnector(spec: DataSourceSpec, opts: FactoryOptions):
         filePath: spec.endpoint,
         name: spec.name,
       });
+
+    case 'BASE44_API': {
+      // `endpoint` = appId. config = { apiKey, entityName, mapperName,
+      // incrementalField? }. mapperName aponta pro registry acima.
+      const apiKey = spec.config?.['apiKey'];
+      const entityName = spec.config?.['entityName'];
+      const mapperName = spec.config?.['mapperName'];
+      if (!apiKey) throw new Error(`Base44 connector ${spec.name} requires config.apiKey`);
+      if (!entityName) throw new Error(`Base44 connector ${spec.name} requires config.entityName`);
+      if (!mapperName) throw new Error(`Base44 connector ${spec.name} requires config.mapperName`);
+      const mapper = BASE44_MAPPERS.get(mapperName);
+      if (!mapper) {
+        throw new Error(
+          `Base44 connector ${spec.name}: mapper '${mapperName}' não registrado. ` +
+            `Registrar via registerBase44Mapper() em packages/connectors antes de criar o DataSource.`,
+        );
+      }
+      return new Base44Connector({
+        appId: spec.endpoint,
+        apiKey,
+        entityName,
+        mapper,
+        ...(spec.config?.['incrementalField']
+          ? { incrementalField: spec.config['incrementalField'] }
+          : {}),
+        name: spec.name,
+      });
+    }
   }
 }
 

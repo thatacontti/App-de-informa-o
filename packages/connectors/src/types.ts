@@ -4,7 +4,13 @@
 
 import type { Brand, CustomerProfile, PriceTier, ProductLine } from '@painel/shared';
 
-export const CONNECTOR_TYPES = ['ERP_DB', 'CRM_API', 'XLSX', 'CSV_HISTORICO'] as const;
+export const CONNECTOR_TYPES = [
+  'ERP_DB',
+  'CRM_API',
+  'XLSX',
+  'CSV_HISTORICO',
+  'BASE44_API',
+] as const;
 export type ConnectorType = (typeof CONNECTOR_TYPES)[number];
 
 export interface ConnectorTestResult {
