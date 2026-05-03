@@ -13,6 +13,9 @@ export const FilterSchema = z.object({
   productGroup: z.string().optional(),
   line: z.enum(LINES_T).optional(),
   priceTier: z.enum(PRICE_TIERS_T).optional(),
+  // Coleção canônica (ex: 'VERAO_2020', 'INVERNO_2026', 'V27'). Quando
+  // ausente, a tela agrega todas as coleções disponíveis no source.
+  collection: z.string().optional(),
 });
 
 export type Filter = z.infer<typeof FilterSchema>;

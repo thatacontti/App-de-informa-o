@@ -117,6 +117,7 @@ function buildSaleWhere(filter: Filter, base: { source: string }) {
   if (f.productGroup) where['productGroup'] = f.productGroup;
   if (f.line) where['productLine'] = f.line;
   if (f.priceTier) where['priceTier'] = f.priceTier;
+  if (f.collection) where['collection'] = f.collection;
   return where;
 }
 

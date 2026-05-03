@@ -6,7 +6,7 @@ import { router, protectedProcedure } from '@/lib/trpc/server';
 
 export const metaRouter = router({
   filterOptions: protectedProcedure.query(async () => {
-    const [reps, ufRows, groups] = await Promise.all([
+    const [reps, ufRows, groups, collectionRows] = await Promise.all([
       db.representative.findMany({
         where: { active: true },
         orderBy: { fullName: 'asc' },
@@ -14,6 +14,7 @@ export const metaRouter = router({
       }),
       db.sale.groupBy({ by: ['ufId'], _count: { _all: true } }),
       db.product.groupBy({ by: ['productGroup'], _count: { _all: true } }),
+      db.sale.groupBy({ by: ['collection'], _count: { _all: true } }),
     ]);
 
     const ufIds = ufRows
@@ -25,6 +26,13 @@ export const metaRouter = router({
       .map((g) => g.productGroup)
       .sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
-    return { reps, ufIds, productGroups };
+    // Mais recentes primeiro (V27 > VERAO_2027 > INVERNO_2026 > ...).
+    const collections = collectionRows
+      .filter((r) => r._count._all > 0)
+      .map((r) => r.collection)
+      .sort()
+      .reverse();
+
+    return { reps, ufIds, productGroups, collections };
   }),
 });

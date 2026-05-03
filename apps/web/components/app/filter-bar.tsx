@@ -7,6 +7,7 @@ import {
   LINE_LABEL,
   PRICE_TIERS,
   PRICE_TIER_LABEL,
+  formatCollectionLabel,
   type Brand,
   type Filter,
   type ProductLine,
@@ -175,6 +176,27 @@ export function FilterBar() {
               />
             ))}
           </Group>
+
+          {(meta.data?.collections ?? []).length > 0 && (
+            <Group label="Coleção">
+              <Chip
+                label="Todas"
+                active={filter.collection === undefined}
+                onClick={() => setFilter('collection', undefined)}
+              />
+              {(meta.data?.collections ?? []).map((c) => (
+                <Chip
+                  key={c}
+                  label={formatCollectionLabel(c)}
+                  title={c}
+                  active={filter.collection === c}
+                  onClick={() =>
+                    setFilter('collection', filter.collection === c ? undefined : c)
+                  }
+                />
+              ))}
+            </Group>
+          )}
         </div>
       </div>
     </div>

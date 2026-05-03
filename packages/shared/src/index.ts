@@ -171,4 +171,46 @@ export const fmtNum = (v: number) =>
 export const fmtPct = (v: number, digits = 1) =>
   `${v >= 0 ? '+' : ''}${v.toFixed(digits)}%`;
 
+// ---------- Collection labels ----------
+
+/**
+ * Converte coleção canônica (`VERAO_2020`, `INVERNO_2026`,
+ * `VERAO_2023_PRIMAVERA`, `V27`) em rótulo legível em português.
+ *
+ *   VERAO_2020             → "Verão 2020"
+ *   INVERNO_2026           → "Inverno 2026"
+ *   VERAO_2023_PRIMAVERA   → "Verão 2023 · Primavera"
+ *   TROPICAL_2025          → "Tropical 2025"
+ *   V27                    → "V27"
+ */
+export function formatCollectionLabel(code: string): string {
+  if (!code) return '';
+  // V26, V27 etc. — já são curtos e não tem que mexer.
+  if (/^V\d{2,4}$/.test(code)) return code;
+
+  const words = code.toLowerCase().split('_').filter(Boolean);
+  if (words.length === 0) return code;
+
+  const seasonRaw = words[0]!;
+  const season =
+    seasonRaw === 'verao'
+      ? 'Verão'
+      : seasonRaw === 'inverno'
+        ? 'Inverno'
+        : seasonRaw === 'tropical'
+          ? 'Tropical'
+          : seasonRaw.charAt(0).toUpperCase() + seasonRaw.slice(1);
+
+  const rest = words
+    .slice(1)
+    .map((w) =>
+      /^\d+$/.test(w) ? w : w === 'verao' ? 'Verão' : w.charAt(0).toUpperCase() + w.slice(1),
+    );
+
+  if (rest.length === 0) return season;
+  if (rest.length === 1) return `${season} ${rest[0]}`;
+  // First chunk is usually the year — separator " ", rest joined by " · ".
+  return `${season} ${rest[0]} · ${rest.slice(1).join(' · ')}`;
+}
+
 export * from './filter';
