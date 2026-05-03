@@ -15,6 +15,14 @@ import { runSaleSync, runTargetSync, type SaleSyncResult, type TargetSyncResult 
 export interface SyncEnv {
   useMock: boolean;
   fixturesDir?: string;
+  /** Repassa pra runSaleSync — auto-reclassifica perfis após upsert. Default true. */
+  reclassifyAfterSync?: boolean;
+}
+
+function runOpts(env: SyncEnv): { reclassifyAfterSync?: boolean } {
+  return env.reclassifyAfterSync === undefined
+    ? {}
+    : { reclassifyAfterSync: env.reclassifyAfterSync };
 }
 
 function spec(ds: {
@@ -59,7 +67,7 @@ export async function syncErpDataSource(
   const ds = await db.dataSource.findUniqueOrThrow({ where: { id: dataSourceId } });
   if (ds.type !== 'ERP_DB') throw new Error(`syncErpDataSource: expected ERP_DB, got ${ds.type}`);
   const connector = createSaleConnector(spec(ds), { useMock: env.useMock, fixturesDir: fixturesDir(env) });
-  return runSaleSync(db, dataSourceId, connector);
+  return runSaleSync(db, dataSourceId, connector, runOpts(env));
 }
 
 export async function syncCrmDataSource(
@@ -70,7 +78,7 @@ export async function syncCrmDataSource(
   const ds = await db.dataSource.findUniqueOrThrow({ where: { id: dataSourceId } });
   if (ds.type !== 'CRM_API') throw new Error(`syncCrmDataSource: expected CRM_API, got ${ds.type}`);
   const connector = createSaleConnector(spec(ds), { useMock: env.useMock, fixturesDir: fixturesDir(env) });
-  return runSaleSync(db, dataSourceId, connector);
+  return runSaleSync(db, dataSourceId, connector, runOpts(env));
 }
 
 export async function syncCsvHistoricoDataSource(
@@ -82,7 +90,7 @@ export async function syncCsvHistoricoDataSource(
   if (ds.type !== 'CSV_HISTORICO')
     throw new Error(`syncCsvHistoricoDataSource: expected CSV_HISTORICO, got ${ds.type}`);
   const connector = createSaleConnector(spec(ds), { useMock: env.useMock, fixturesDir: fixturesDir(env) });
-  return runSaleSync(db, dataSourceId, connector);
+  return runSaleSync(db, dataSourceId, connector, runOpts(env));
 }
 
 export async function syncBase44DataSource(
@@ -94,7 +102,7 @@ export async function syncBase44DataSource(
   if (ds.type !== 'BASE44_API')
     throw new Error(`syncBase44DataSource: expected BASE44_API, got ${ds.type}`);
   const connector = createSaleConnector(spec(ds), { useMock: env.useMock, fixturesDir: fixturesDir(env) });
-  return runSaleSync(db, dataSourceId, connector);
+  return runSaleSync(db, dataSourceId, connector, runOpts(env));
 }
 
 export async function syncMetasDataSource(

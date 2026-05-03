@@ -33,6 +33,8 @@ export interface SyncWorkerEnv {
   useMock: boolean;
   fixturesDir?: string;
   concurrency?: number;
+  /** Passa pra runSaleSync; default true. */
+  reclassifyAfterSync?: boolean;
 }
 
 export function createSyncWorker(
@@ -46,6 +48,7 @@ export function createSyncWorker(
       return syncDataSource(db, job.data.dataSourceId, {
         useMock: env.useMock,
         fixturesDir: env.fixturesDir,
+        reclassifyAfterSync: env.reclassifyAfterSync,
       });
     },
     { connection, concurrency: env.concurrency ?? 2 },
