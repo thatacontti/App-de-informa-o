@@ -48,6 +48,7 @@ export function DataSourcesTable({ role }: { role: Role }) {
   const trigger = trpc.dataSources.triggerSync.useMutation();
   const enqueue = trpc.dataSources.enqueueSync.useMutation();
   const reclassify = trpc.dataSources.reclassifyProfiles.useMutation();
+  const toggle = trpc.dataSources.toggleActive.useMutation();
   const [feedback, setFeedback] = useState<{ id: string; ok: boolean; msg: string } | null>(null);
 
   const canTrigger = can(role, 'admin:trigger-sync');
@@ -110,6 +111,35 @@ export function DataSourcesTable({ role }: { role: Role }) {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant={s.active ? 'outline' : 'default'}
+                        disabled={toggle.isPending}
+                        title={s.active ? 'Pausa o sync agendado' : 'Liga pra entrar no scheduler'}
+                        onClick={async () => {
+                          toggle.reset();
+                          try {
+                            const r = await toggle.mutateAsync({
+                              dataSourceId: s.id,
+                              active: !s.active,
+                            });
+                            setFeedback({
+                              id: s.id,
+                              ok: true,
+                              msg: `${r.name}: ${r.active ? 'ativada' : 'desativada'}`,
+                            });
+                            await sources.refetch();
+                          } catch (e) {
+                            setFeedback({
+                              id: s.id,
+                              ok: false,
+                              msg: `${s.name}: ${(e as Error).message}`,
+                            });
+                          }
+                        }}
+                      >
+                        {s.active ? 'Ativa' : 'Inativa'}
+                      </Button>
                       <Button
                         size="sm"
                         variant="outline"

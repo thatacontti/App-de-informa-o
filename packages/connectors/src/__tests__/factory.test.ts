@@ -144,7 +144,8 @@ describe('factory · real mode', () => {
     expect(c.type).toBe('BASE44_API');
   });
 
-  it('rejects BASE44_API without apiKey', () => {
+  it('rejects BASE44_API without apiKey (nem em config nem em env)', () => {
+    delete process.env['BASE44_API_KEY'];
     expect(() =>
       createSaleConnector(
         {
@@ -155,21 +156,59 @@ describe('factory · real mode', () => {
         },
         { useMock: false, fixturesDir: FIXTURES_DIR },
       ),
-    ).toThrow(/requires config\.apiKey/);
+    ).toThrow(/api key ausente.*BASE44_API_KEY/);
   });
 
-  it('rejects BASE44_API when mapperName is unknown to the registry', () => {
-    expect(() =>
-      createSaleConnector(
+  it('aceita BASE44_API_KEY do env quando config não traz apiKey', () => {
+    process.env['BASE44_API_KEY'] = 'env-key-xyz';
+    try {
+      const c = createSaleConnector(
         {
           type: 'BASE44_API',
           name: 'base44-sales',
           endpoint: 'app-id-xyz',
-          config: { apiKey: 'k', entityName: 'Sale', mapperName: 'never-registered' },
+          // só mapperName custom — entityName e apiKey vêm de defaults/env
+          config: { mapperName: 'test-mapper' },
         },
         { useMock: false, fixturesDir: FIXTURES_DIR },
-      ),
-    ).toThrow(/never-registered.*não registrado/);
+      );
+      expect(c.type).toBe('BASE44_API');
+    } finally {
+      delete process.env['BASE44_API_KEY'];
+    }
+  });
+
+  it('usa default mapperName=sale-default + entityName=Sale quando config vazio', () => {
+    process.env['BASE44_API_KEY'] = 'env-key-xyz';
+    try {
+      const c = createSaleConnector(
+        { type: 'BASE44_API', name: 'base44-sales', endpoint: 'app-id-xyz' },
+        { useMock: false, fixturesDir: FIXTURES_DIR },
+      );
+      expect(c.type).toBe('BASE44_API');
+      // mapper default 'sale-default' está registrado pelo factory.ts no boot
+    } finally {
+      delete process.env['BASE44_API_KEY'];
+    }
+  });
+
+  it('rejects BASE44_API when mapperName is unknown to the registry', () => {
+    process.env['BASE44_API_KEY'] = 'env-key-xyz';
+    try {
+      expect(() =>
+        createSaleConnector(
+          {
+            type: 'BASE44_API',
+            name: 'base44-sales',
+            endpoint: 'app-id-xyz',
+            config: { apiKey: 'k', entityName: 'Sale', mapperName: 'never-registered' },
+          },
+          { useMock: false, fixturesDir: FIXTURES_DIR },
+        ),
+      ).toThrow(/never-registered.*não registrado/);
+    } finally {
+      delete process.env['BASE44_API_KEY'];
+    }
   });
 });
 

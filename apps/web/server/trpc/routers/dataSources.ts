@@ -81,6 +81,26 @@ export const dataSourcesRouter = router({
       return { jobId: job.id ?? 'unknown', queued: true as const };
     }),
 
+  // Liga/desliga uma DataSource direto pela UI — evita admin precisar
+  // abrir Prisma Studio só pra trocar o boolean. Útil pra ativar fontes
+  // semeadas como inativas (Base44 · Sale, CSV histórico).
+  toggleActive: requireAction('admin:datasources')
+    .input(z.object({ dataSourceId: z.string().min(1), active: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      await db.auditLog.create({
+        data: {
+          userId: ctx.user.id,
+          action: input.active ? 'datasource.activated' : 'datasource.deactivated',
+          payload: { dataSourceId: input.dataSourceId },
+        },
+      });
+      return db.dataSource.update({
+        where: { id: input.dataSourceId },
+        data: { active: input.active },
+        select: { id: true, active: true, name: true },
+      });
+    }),
+
   // Reclassifica CustomerProfile a partir do histórico de coleções.
   // Usa as duas coleções mais recentes (por MAX(date)) como current /
   // previous; o admin pode override via input quando precisar.
