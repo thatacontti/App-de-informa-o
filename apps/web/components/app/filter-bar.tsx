@@ -197,6 +197,37 @@ export function FilterBar() {
               ))}
             </Group>
           )}
+
+          {/* Comparar com: aparece quando há mais de uma coleção pra
+              comparar e o usuário já escolheu uma como recorte. SSS /
+              YoY usam a coleção escolhida como baseline (substitui o
+              V26 padrão). */}
+          {(meta.data?.collections ?? []).length > 1 && filter.collection && (
+            <Group label="Comparar com">
+              <Chip
+                label="V26 (padrão)"
+                title="usa CustomerBrandRevenue period=V26 como baseline"
+                active={filter.compareCollection === undefined}
+                onClick={() => setFilter('compareCollection', undefined)}
+              />
+              {(meta.data?.collections ?? [])
+                .filter((c) => c !== filter.collection)
+                .map((c) => (
+                  <Chip
+                    key={c}
+                    label={formatCollectionLabel(c)}
+                    title={c}
+                    active={filter.compareCollection === c}
+                    onClick={() =>
+                      setFilter(
+                        'compareCollection',
+                        filter.compareCollection === c ? undefined : c,
+                      )
+                    }
+                  />
+                ))}
+            </Group>
+          )}
         </div>
       </div>
     </div>

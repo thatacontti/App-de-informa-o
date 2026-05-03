@@ -6,6 +6,7 @@ import {
 } from '@painel/shared';
 import { db } from '@/lib/db';
 import { router, requireAction } from '@/lib/trpc/server';
+import { loadBaseline } from './_baseline';
 
 const PROFILE_ORDER: CustomerProfile[] = [
   'VIP_3PLUS',
@@ -73,17 +74,10 @@ export const negocioRouter = router({
         },
       });
 
-      // V26 baseline (per customer × brand).
-      const v26Rows = await db.customerBrandRevenue.findMany({
-        where: { period: 'V26' },
-        select: { customerId: true, brand: true, value: true },
-      });
-      const V26M = new Map<string, Partial<Record<Brand, number>>>();
-      for (const r of v26Rows) {
-        const m = V26M.get(r.customerId) ?? {};
-        m[r.brand] = Number(r.value);
-        V26M.set(r.customerId, m);
-      }
+      // Baseline (per customer × brand) — V26 do CustomerBrandRevenue
+      // por padrão, ou somatório do Sale na coleção escolhida quando o
+      // usuário pediu uma comparação ano-a-ano qualquer.
+      const V26M = await loadBaseline(db, input.compareCollection);
 
       const ufYoY = await db.uF.findMany({ select: { id: true } });
       const ufRows = await db.sale.groupBy({

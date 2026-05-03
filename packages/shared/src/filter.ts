@@ -16,6 +16,12 @@ export const FilterSchema = z.object({
   // Coleção canônica (ex: 'VERAO_2020', 'INVERNO_2026', 'V27'). Quando
   // ausente, a tela agrega todas as coleções disponíveis no source.
   collection: z.string().optional(),
+  // Coleção usada como baseline pelas comparações SSS / YoY. Quando
+  // ausente, o SSS continua usando o baseline V26 do
+  // `CustomerBrandRevenue` (compatibilidade com o cycle V27 ativo).
+  // Quando setada, o baseline é derivado dos próprios `Sale` rows com
+  // `collection = compareCollection`.
+  compareCollection: z.string().optional(),
 });
 
 export type Filter = z.infer<typeof FilterSchema>;
