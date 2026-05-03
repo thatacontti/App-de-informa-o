@@ -15,7 +15,7 @@ export const produtoRouter = router({
     .input(FilterSchema)
     .query(async ({ input }) => {
       const sales = await db.sale.findMany({
-        where: buildSaleWhere(input, { source: 'fixture' }),
+        where: buildSaleWhere(input),
         select: {
           customerId: true,
           productSku: true,
@@ -121,8 +121,8 @@ export const produtoRouter = router({
 
 // ---------- utilities ----------
 
-function buildSaleWhere(filter: Filter, base: { source: string }) {
-  const where: Record<string, unknown> = { source: base.source };
+function buildSaleWhere(filter: Filter) {
+  const where: Record<string, unknown> = {};
   if (filter.brand) where['brand'] = filter.brand;
   if (filter.ufId) where['ufId'] = filter.ufId;
   if (filter.repId) where['repId'] = filter.repId;

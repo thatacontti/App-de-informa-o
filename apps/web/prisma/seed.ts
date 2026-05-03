@@ -474,27 +474,53 @@ async function seedTargets(d: Fixture) {
 // Main
 // =====================================================
 
-async function main() {
-  console.log('▶ Seeding Painel V27');
-  console.log(`  fixtures dir: ${FIXTURES_DIR}`);
-  const t0 = Date.now();
-  const { d, cp, v26m } = loadFixtures();
-  console.log(`  fixtures: ${d.recs.length} records · ${Object.keys(cp).length} cities · ${Object.keys(v26m).length} v26 customers`);
+// SEED_MODE governs what runs:
+//   structural (default, prod-safe) — UFs, default users, DataSources.
+//     All idempotent upserts. No fact tables touched, no fixture data
+//     inserted. Safe to run on every Railway deploy.
+//   demo — also seeds the fixture sales / V26 baseline / cities / reps /
+//     customers / products / sample targets. Wipes Sale table before
+//     re-inserting (see seedSales). DEV / staging only.
+type SeedMode = 'structural' | 'demo';
 
-  const users = await seedUsers();           console.log(`  ✓ users        ${users}`);
-  const ufs = await seedUFs();               console.log(`  ✓ UFs          ${ufs}`);
-  const cities = await seedCities(d, cp);    console.log(`  ✓ cities       ${cities}`);
-  const reps = await seedReps(d);            console.log(`  ✓ reps         ${reps}`);
-  const customers = await seedCustomers(d);  console.log(`  ✓ customers    ${customers}`);
-  const products = await seedProducts(d);    console.log(`  ✓ products     ${products}`);
-  const sales = await seedSales(d);          console.log(`  ✓ sales        ${sales}`);
-  const v26 = await seedV26Baseline(v26m);   console.log(`  ✓ V26 baseline ${v26}`);
-  const sources = await seedDataSources();   console.log(`  ✓ data sources ${sources}`);
-  const targets = await seedTargets(d);      console.log(`  ✓ targets      ${targets}`);
+function readMode(): SeedMode {
+  const m = (process.env['SEED_MODE'] ?? 'structural').toLowerCase();
+  if (m === 'demo') return 'demo';
+  if (m === 'structural') return 'structural';
+  throw new Error(`SEED_MODE must be 'structural' or 'demo' (got '${m}')`);
+}
+
+async function main() {
+  const mode = readMode();
+  console.log(`▶ Seeding Painel V27 (mode: ${mode})`);
+  const t0 = Date.now();
+
+  // Structural — always runs.
+  const users = await seedUsers();         console.log(`  ✓ users        ${users}`);
+  const ufs = await seedUFs();             console.log(`  ✓ UFs          ${ufs}`);
+  const sources = await seedDataSources(); console.log(`  ✓ data sources ${sources}`);
+
+  if (mode === 'demo') {
+    console.log(`  fixtures dir: ${FIXTURES_DIR}`);
+    const { d, cp, v26m } = loadFixtures();
+    console.log(`  fixtures: ${d.recs.length} records · ${Object.keys(cp).length} cities · ${Object.keys(v26m).length} v26 customers`);
+
+    const cities = await seedCities(d, cp);    console.log(`  ✓ cities       ${cities}`);
+    const reps = await seedReps(d);            console.log(`  ✓ reps         ${reps}`);
+    const customers = await seedCustomers(d);  console.log(`  ✓ customers    ${customers}`);
+    const products = await seedProducts(d);    console.log(`  ✓ products     ${products}`);
+    const sales = await seedSales(d);          console.log(`  ✓ sales        ${sales}`);
+    const v26 = await seedV26Baseline(v26m);   console.log(`  ✓ V26 baseline ${v26}`);
+    const targets = await seedTargets(d);      console.log(`  ✓ targets      ${targets}`);
+  } else {
+    console.log(`  (skipped fixtures — SEED_MODE=structural)`);
+  }
 
   console.log(`\n✔ seed completed in ${((Date.now() - t0) / 1000).toFixed(1)}s\n`);
-  console.log(`  default password for the 3 seed users: Catarina2026!`);
-  console.log(`  rotate before production deploy (see README "Trocar senha inicial")\n`);
+  if (mode === 'demo') {
+    console.log(`  default password for the 3 seed users: Catarina2026!`);
+    console.log(`  rotate before production deploy (see README "Trocar senha inicial")\n`);
+  }
 }
 
 main()

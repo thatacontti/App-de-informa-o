@@ -32,11 +32,9 @@ export const negocioRouter = router({
   dashboard: requireAction('view:negocio')
     .input(FilterSchema)
     .query(async ({ input }) => {
-      const sourceFilter = { source: 'fixture' as const };
-
       // Sales matching the full filter (every facet) — used for KPIs, top customers, marca share.
       const fullSales = await db.sale.findMany({
-        where: buildSaleWhere(input, sourceFilter),
+        where: buildSaleWhere(input),
         select: {
           customerId: true,
           productSku: true,
@@ -66,7 +64,7 @@ export const negocioRouter = router({
       const noBrandFilter = { ...input };
       delete noBrandFilter.brand;
       const dataMacro = await db.sale.findMany({
-        where: buildSaleWhere(noBrandFilter, sourceFilter),
+        where: buildSaleWhere(noBrandFilter),
         select: {
           customerId: true,
           brand: true,
@@ -90,7 +88,7 @@ export const negocioRouter = router({
       const ufYoY = await db.uF.findMany({ select: { id: true } });
       const ufRows = await db.sale.groupBy({
         by: ['ufId'],
-        where: buildSaleWhere(input, sourceFilter),
+        where: buildSaleWhere(input),
         _sum: { value: true },
       });
 
@@ -100,7 +98,7 @@ export const negocioRouter = router({
         sssMacro: computeSSSMacro(input.brand, dataMacro, V26M, X),
         sssByPerfil: computeSSSByPerfil(input.brand, dataMacro, V26M, X),
         topCustomers: computeTopCustomers(input.brand, dataMacro, V26M, X, 20),
-        ufYoY: await computeUfYoY(input, sourceFilter, ufRows, V26M),
+        ufYoY: await computeUfYoY(input, ufRows, V26M),
         validUfIds: ufYoY.map((u) => u.id),
       };
     }),
@@ -108,8 +106,12 @@ export const negocioRouter = router({
 
 // ---------- query builder ----------
 
-function buildSaleWhere(filter: Filter, base: { source: string }) {
-  const where: Record<string, unknown> = { source: base.source };
+// Builds the Prisma where for the Sale fact table. Source is no longer
+// constrained — fixture / ERP / CRM / CSV histórico all show up so the
+// admin sees every season they ingested. The "Coleção" filter scopes
+// temporally; the chip-based facets scope dimensionally.
+function buildSaleWhere(filter: Filter) {
+  const where: Record<string, unknown> = {};
   const f = filter;
   if (f.brand) where['brand'] = f.brand;
   if (f.ufId) where['ufId'] = f.ufId;
@@ -357,14 +359,13 @@ function computeTopCustomers(
 
 async function computeUfYoY(
   filter: Filter,
-  base: { source: string },
   v27Rows: { ufId: string; _sum: { value: import('@prisma/client/runtime/library').Decimal | null } }[],
   V26M: Map<string, Partial<Record<Brand, number>>>,
 ) {
   // Recurring customers per UF: those that have a V26 record AND have V27 sales in scope.
   const recurringByUf = new Map<string, Set<string>>();
   const cliRecSales = await db.sale.findMany({
-    where: buildSaleWhere(filter, base),
+    where: buildSaleWhere(filter),
     select: { customerId: true, ufId: true },
   });
   for (const r of cliRecSales) {
@@ -379,7 +380,7 @@ async function computeUfYoY(
     if (!V26M.has(r.customerId)) continue;
   }
   const cliRecValues = await db.sale.findMany({
-    where: { ...buildSaleWhere(filter, base), customerId: { in: [...V26M.keys()] } },
+    where: { ...buildSaleWhere(filter), customerId: { in: [...V26M.keys()] } },
     select: { ufId: true, value: true, customerId: true },
   });
   for (const r of cliRecValues) {

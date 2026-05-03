@@ -38,10 +38,8 @@ export const marcaCidadeRouter = router({
   dashboard: requireAction('view:marca-cidade')
     .input(FilterSchema)
     .query(async ({ input }) => {
-      const sourceFilter = { source: 'fixture' as const };
-
       const fullSales = await db.sale.findMany({
-        where: buildSaleWhere(input, sourceFilter),
+        where: buildSaleWhere(input),
         select: {
           customerId: true,
           cityId: true,
@@ -72,7 +70,7 @@ export const marcaCidadeRouter = router({
       const noBrandFilter = { ...input };
       delete noBrandFilter.brand;
       const dataMacro = await db.sale.findMany({
-        where: buildSaleWhere(noBrandFilter, sourceFilter),
+        where: buildSaleWhere(noBrandFilter),
         select: { customerId: true, brand: true, productLine: true, value: true },
       });
 
@@ -103,8 +101,8 @@ export const marcaCidadeRouter = router({
     }),
 });
 
-function buildSaleWhere(filter: Filter, base: { source: string }) {
-  const where: Record<string, unknown> = { source: base.source };
+function buildSaleWhere(filter: Filter) {
+  const where: Record<string, unknown> = {};
   if (filter.brand) where['brand'] = filter.brand;
   if (filter.ufId) where['ufId'] = filter.ufId;
   if (filter.repId) where['repId'] = filter.repId;
