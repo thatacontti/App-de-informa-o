@@ -32,6 +32,12 @@ export interface Base44ConnectorOptions {
   incrementalField?: string;
   /** Tamanho da página (default: 500, máx típico do Base44 é 1000). */
   pageSize?: number;
+  /**
+   * URL custom do app Base44 (ex: https://meuapp.base44.app). O SDK
+   * usa https://base44.app por padrão; apps com subdomain próprio
+   * normalmente exigem esse override pra passar pelo allowlist.
+   */
+  serverUrl?: string;
   name?: string;
   /** SDK pré-construído pra testes — bypassa createClient. */
   client?: Base44Client;
@@ -57,6 +63,7 @@ export class Base44Connector implements SaleConnector {
       createClient({
         appId: opts.appId,
         headers: { api_key: opts.apiKey },
+        ...(opts.serverUrl ? { serverUrl: opts.serverUrl } : {}),
       });
   }
 

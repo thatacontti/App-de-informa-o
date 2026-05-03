@@ -17,8 +17,34 @@ export interface SyncEnv {
   fixturesDir?: string;
 }
 
-function spec(ds: { type: string; name: string; endpoint: string }): DataSourceSpec {
-  return { type: ds.type as DataSourceSpec['type'], name: ds.name, endpoint: ds.endpoint };
+function spec(ds: {
+  type: string;
+  name: string;
+  endpoint: string;
+  configEncrypted?: string | null;
+}): DataSourceSpec {
+  // configEncrypted é só um nome aspiracional — hoje carrega JSON em
+  // texto puro. Os connectors leem campos dele (apiKey, mapperName,
+  // serverUrl, view, token, etc.) de acordo com o tipo.
+  let config: Record<string, string> | undefined;
+  if (ds.configEncrypted) {
+    try {
+      const parsed = JSON.parse(ds.configEncrypted) as Record<string, unknown>;
+      config = Object.fromEntries(
+        Object.entries(parsed).filter(([, v]) => typeof v === 'string'),
+      ) as Record<string, string>;
+    } catch (e) {
+      throw new Error(
+        `DataSource ${ds.name} (${ds.type}): configEncrypted não é JSON válido — ${(e as Error).message}`,
+      );
+    }
+  }
+  return {
+    type: ds.type as DataSourceSpec['type'],
+    name: ds.name,
+    endpoint: ds.endpoint,
+    ...(config ? { config } : {}),
+  };
 }
 
 function fixturesDir(env: SyncEnv): string {

@@ -9,3 +9,4 @@ export * from './fixture';
 export * from './factory';
 export * from './csv-historico';
 export * from './base44';
+export * from './base44-mappers';

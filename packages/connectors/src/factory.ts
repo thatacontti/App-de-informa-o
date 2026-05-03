@@ -4,6 +4,7 @@
 
 import * as path from 'node:path';
 import { Base44Connector, type Base44Mapper } from './base44';
+import { makeSaleMapper, makeSalesDataMapper } from './base44-mappers';
 import { CrmApiConnector } from './crm-api';
 import { CsvHistoricoConnector } from './csv-historico';
 import { ErpPostgresConnector } from './erp-postgres';
@@ -23,6 +24,11 @@ export function registerBase44Mapper(name: string, mapper: Base44Mapper): void {
 export function getBase44Mapper(name: string): Base44Mapper | undefined {
   return BASE44_MAPPERS.get(name);
 }
+
+// Mappers built-in pro app `catarina-vibe-flow.base44.app`. Outras
+// apps podem registrar mappers custom em runtime via registerBase44Mapper.
+registerBase44Mapper('sale-default', makeSaleMapper());
+registerBase44Mapper('salesdata-default', makeSalesDataMapper());
 
 export interface DataSourceSpec {
   type: ConnectorType;
@@ -97,6 +103,9 @@ export function createSaleConnector(spec: DataSourceSpec, opts: FactoryOptions):
         mapper,
         ...(spec.config?.['incrementalField']
           ? { incrementalField: spec.config['incrementalField'] }
+          : {}),
+        ...(spec.config?.['serverUrl']
+          ? { serverUrl: spec.config['serverUrl'] }
           : {}),
         name: spec.name,
       });

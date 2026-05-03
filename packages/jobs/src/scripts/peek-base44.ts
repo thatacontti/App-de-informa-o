@@ -44,7 +44,12 @@ async function main() {
   const entityName = process.argv[2];
   const limit = Number(readArg('limit') ?? '5');
 
-  const client = createClient({ appId, headers: { api_key: apiKey } });
+  const serverUrl = process.env['BASE44_SERVER_URL'];
+  const client = createClient({
+    appId,
+    headers: { api_key: apiKey },
+    ...(serverUrl ? { serverUrl } : {}),
+  });
   const entities = client.entities as unknown as Record<
     string,
     | { list: (sort?: string, limit?: number) => Promise<unknown[]> }
