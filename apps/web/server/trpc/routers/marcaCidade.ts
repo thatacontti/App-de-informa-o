@@ -91,6 +91,10 @@ export const marcaCidadeRouter = router({
         cityProfile: computeCityProfile(X),
         brandByProfile: computeBrandByProfile(X),
         topCities: computeTopCities(X),
+        comparison: {
+          baseline: input.compareCollection ?? 'V26',
+          current: input.collection ?? 'V27',
+        },
       };
     }),
 });

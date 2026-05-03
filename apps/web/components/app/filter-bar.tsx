@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import {
   BRAND_LABEL,
   BRANDS,
@@ -74,6 +75,21 @@ const SHORT_REP = (s: string) =>
 export function FilterBar() {
   const { filter, setFilter } = useFilter();
   const meta = trpc.meta.filterOptions.useQuery();
+
+  // Default the chip to the most recent collection on first meta load
+  // so the dashboard shows a single coherent cycle instead of summing
+  // 7 anos de histórico (KPIs gigantes, SSS sem sentido). User can pick
+  // 'Todas' or qualquer outra coleção depois.
+  const initialized = useRef(false);
+  useEffect(() => {
+    if (initialized.current) return;
+    const collections = meta.data?.collections;
+    if (!collections || collections.length === 0) return;
+    initialized.current = true;
+    if (filter.collection === undefined) {
+      setFilter('collection', collections[0]);
+    }
+  }, [meta.data, filter.collection, setFilter]);
 
   return (
     <div className="sticky top-[57px] z-20 bg-cream/85 px-9 pb-3 pt-3 backdrop-blur">

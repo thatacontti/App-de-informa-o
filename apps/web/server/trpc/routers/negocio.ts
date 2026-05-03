@@ -94,6 +94,12 @@ export const negocioRouter = router({
         topCustomers: computeTopCustomers(input.brand, dataMacro, V26M, X, 20),
         ufYoY: await computeUfYoY(input, ufRows, V26M),
         validUfIds: ufYoY.map((u) => u.id),
+        // Pair sendo comparado — UI exibe pra que o usuário saiba o que
+        // está vendo nos cards SSS / YoY (V26→V27 ou par arbitrário).
+        comparison: {
+          baseline: input.compareCollection ?? 'V26',
+          current: input.collection ?? 'V27',
+        },
       };
     }),
 });

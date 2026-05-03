@@ -1,5 +1,6 @@
 'use client';
 
+import { formatCollectionLabel } from '@painel/shared';
 import { trpc } from '@/lib/trpc/client';
 import { useFilter } from '@/lib/filter-context';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -61,7 +62,9 @@ export default function NegocioPage() {
     );
   }
 
-  const { kpis, marcaShare, sssMacro, sssByPerfil, topCustomers, ufYoY } = q.data;
+  const { kpis, marcaShare, sssMacro, sssByPerfil, topCustomers, ufYoY, comparison } = q.data;
+  const baselineLbl = formatCollectionLabel(comparison.baseline);
+  const currentLbl = formatCollectionLabel(comparison.current);
 
   return (
     <div className="mx-auto max-w-[1500px] px-9 py-5">
@@ -72,13 +75,14 @@ export default function NegocioPage() {
       </Section>
 
       <Section
-        title="💰 Same Store Sales · V26 ↔ V27"
+        title={`💰 Same Store Sales · ${baselineLbl} ↔ ${currentLbl}`}
         insight={{
           kind: 'success',
           html: (
             <>
-              <b>Como ler:</b> V26 é o histórico dos clientes recorrentes. SSS = crescimento{' '}
-              <b>real</b> dessa carteira. NOVO 27 soma à parte como conquistas líquidas.
+              <b>Como ler:</b> {baselineLbl} é o histórico dos clientes recorrentes. SSS ={' '}
+              crescimento <b>real</b> dessa carteira em {currentLbl}. Clientes novos somam à parte
+              como conquistas líquidas.
             </>
           ),
         }}
@@ -95,13 +99,13 @@ export default function NegocioPage() {
       </Section>
 
       <Section
-        title="🌎 Performance por Estado · V26 vs V27"
+        title={`🌎 Performance por Estado · ${baselineLbl} vs ${currentLbl}`}
         insight={{
           html: (
             <>
               <b>Leitura:</b> SSS ≥ +20% = excepcional · 0 a +20% = saudável · -20 a 0% = atenção ·
-              abaixo de -20% = crítico. Repr. V27 mostra quanto o estado representa do faturamento
-              total.
+              abaixo de -20% = crítico. Repr. {currentLbl} mostra quanto o estado representa do
+              faturamento total.
             </>
           ),
         }}

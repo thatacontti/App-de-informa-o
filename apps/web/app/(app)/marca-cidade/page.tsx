@@ -1,5 +1,6 @@
 'use client';
 
+import { formatCollectionLabel } from '@painel/shared';
 import { trpc } from '@/lib/trpc/client';
 import { useFilter } from '@/lib/filter-context';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -64,18 +65,20 @@ export default function MarcaCidadePage() {
     );
   }
 
-  const { sssMarca, sssMarcaLinha, sssLinha, cityIbge, cityProfile, brandByProfile, topCities } = q.data;
+  const { sssMarca, sssMarcaLinha, sssLinha, cityIbge, cityProfile, brandByProfile, topCities, comparison } = q.data;
+  const baselineLbl = formatCollectionLabel(comparison.baseline);
+  const currentLbl = formatCollectionLabel(comparison.current);
 
   return (
     <div className="mx-auto max-w-[1500px] px-9 py-5">
       <Section
-        title="🏷 SSS por Marca · V26 estimado vs V27"
+        title={`🏷 SSS por Marca · ${baselineLbl} vs ${currentLbl}`}
         insight={{
           kind: 'success',
           html: (
             <>
-              <b>Método EXATO:</b> V26 por marca = base oficial segmentada (verão_atualizado.xlsx).
-              Match real cliente × marca × ano. Sem estimativa.
+              <b>Método EXATO:</b> {baselineLbl} por marca = base oficial segmentada. Match real
+              cliente × marca × ano. Sem estimativa.
             </>
           ),
         }}
@@ -87,9 +90,10 @@ export default function MarcaCidadePage() {
         </h3>
         <Alert>
           <AlertDescription>
-            <b>V26 não tem informação de linha.</b> O V26 é exato por marca (via base segmentada). A
-            distribuição por linha mostra como o V27 de cada marca se distribui entre BEBE,
-            Primeiros Passos, Infantil e Teen — para entender qual idade puxa o resultado.
+            <b>{baselineLbl} não tem informação de linha.</b> O baseline é exato por marca (via base
+            segmentada). A distribuição por linha mostra como o {currentLbl} de cada marca se
+            distribui entre BEBE, Primeiros Passos, Infantil e Teen — para entender qual idade puxa
+            o resultado.
           </AlertDescription>
         </Alert>
         <div className="mt-3">
@@ -101,9 +105,9 @@ export default function MarcaCidadePage() {
         </h3>
         <Alert>
           <AlertDescription>
-            <b>Cada linha está positiva?</b> Cards mostram SSS estimado por linha (V26 distribuído
-            proporcionalmente pelo peso da linha no V27 do mesmo cliente). Barra inferior mostra
-            composição por marca dentro de cada linha.
+            <b>Cada linha está positiva?</b> Cards mostram SSS estimado por linha ({baselineLbl}{' '}
+            distribuído proporcionalmente pelo peso da linha no {currentLbl} do mesmo cliente).
+            Barra inferior mostra composição por marca dentro de cada linha.
           </AlertDescription>
         </Alert>
         <SssLinhaCards data={sssLinha} />
@@ -130,9 +134,9 @@ export default function MarcaCidadePage() {
         insight={{
           html: (
             <>
-              <b>Leitura:</b> V26 recorr. e V27 recorr. comparam apenas clientes recorrentes (mesma
-              base). V27 total inclui NOVOS 27. SSS ≥+20% = tração forte; 0 a +20% = saudável; -20
-              a 0% = atenção; abaixo = crítico.
+              <b>Leitura:</b> {baselineLbl} recorr. e {currentLbl} recorr. comparam apenas clientes
+              recorrentes (mesma base). {currentLbl} total inclui clientes novos. SSS ≥+20% = tração
+              forte; 0 a +20% = saudável; -20 a 0% = atenção; abaixo = crítico.
             </>
           ),
         }}
