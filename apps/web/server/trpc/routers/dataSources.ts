@@ -5,6 +5,7 @@ import {
 } from '@painel/jobs';
 import { db } from '@/lib/db';
 import { env } from '@/lib/env';
+import { syncQueue } from '@/lib/queues';
 import { router, requireAction } from '@/lib/trpc/server';
 
 const triggerInput = z.object({ dataSourceId: z.string().min(1) });
@@ -51,5 +52,31 @@ export const dataSourcesRouter = router({
         },
       });
       return syncDataSource(db, input.dataSourceId, { useMock: env.USE_MOCK_CONNECTORS });
+    }),
+
+  // Background variant — enqueues the sync into BullMQ and returns the
+  // SyncRun id immediately. Use for heavy historic loads (CSV) where
+  // an inline run would blow the HTTP timeout.
+  enqueueSync: requireAction('admin:trigger-sync')
+    .input(triggerInput)
+    .mutation(async ({ ctx, input }) => {
+      await db.auditLog.create({
+        data: {
+          userId: ctx.user.id,
+          action: 'sync.queued',
+          payload: { dataSourceId: input.dataSourceId },
+        },
+      });
+
+      const job = await syncQueue.add(
+        'sync-manual',
+        {
+          dataSourceId: input.dataSourceId,
+          triggeredBy: 'manual',
+          triggeredByUserId: ctx.user.id,
+        },
+        { removeOnComplete: 50, removeOnFail: 50 },
+      );
+      return { jobId: job.id ?? 'unknown', queued: true as const };
     }),
 });

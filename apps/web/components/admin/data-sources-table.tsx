@@ -32,9 +32,20 @@ function formatType(t: string) {
 }
 
 export function DataSourcesTable({ role }: { role: Role }) {
-  const sources = trpc.dataSources.list.useQuery();
+  // Auto-refresh every 3s while any sync is in-flight so the user sees
+  // the RUNNING → SUCCESS/FAILED transition without manual reload.
+  const sources = trpc.dataSources.list.useQuery(undefined, {
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      const anyRunning = data?.sources?.some(
+        (s) => s.lastSyncStatus === 'RUNNING' || s.syncs[0]?.status === 'RUNNING',
+      );
+      return anyRunning ? 3000 : false;
+    },
+  });
   const test = trpc.dataSources.testConnection.useMutation();
   const trigger = trpc.dataSources.triggerSync.useMutation();
+  const enqueue = trpc.dataSources.enqueueSync.useMutation();
   const [feedback, setFeedback] = useState<{ id: string; ok: boolean; msg: string } | null>(null);
 
   const canTrigger = can(role, 'admin:trigger-sync');
@@ -115,7 +126,36 @@ export function DataSourcesTable({ role }: { role: Role }) {
                       >
                         Testar
                       </Button>
-                      {canTrigger && (
+                      {canTrigger && s.type === 'CSV_HISTORICO' && (
+                        // Heavy historic loads (~100k rows/file) always go
+                        // through BullMQ — the HTTP request would time out
+                        // before the inline upsert finished.
+                        <Button
+                          size="sm"
+                          disabled={enqueue.isPending}
+                          onClick={async () => {
+                            enqueue.reset();
+                            try {
+                              const r = await enqueue.mutateAsync({ dataSourceId: s.id });
+                              setFeedback({
+                                id: s.id,
+                                ok: true,
+                                msg: `${s.name}: enfileirado (job ${r.jobId}). A tabela atualiza sozinha.`,
+                              });
+                              await sources.refetch();
+                            } catch (e) {
+                              setFeedback({
+                                id: s.id,
+                                ok: false,
+                                msg: `${s.name}: ${(e as Error).message}`,
+                              });
+                            }
+                          }}
+                        >
+                          Enfileirar
+                        </Button>
+                      )}
+                      {canTrigger && s.type !== 'CSV_HISTORICO' && (
                         <Button
                           size="sm"
                           disabled={trigger.isPending}
