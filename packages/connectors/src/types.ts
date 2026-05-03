@@ -4,7 +4,13 @@
 
 import type { Brand, CustomerProfile, PriceTier, ProductLine } from '@painel/shared';
 
-export const CONNECTOR_TYPES = ['ERP_DB', 'CRM_API', 'XLSX'] as const;
+export const CONNECTOR_TYPES = [
+  'ERP_DB',
+  'CRM_API',
+  'XLSX',
+  'CSV_HISTORICO',
+  'BASE44_API',
+] as const;
 export type ConnectorType = (typeof CONNECTOR_TYPES)[number];
 
 export interface ConnectorTestResult {
@@ -35,7 +41,8 @@ export interface NormalizedSale {
   unitPrice?: number;
   customerId: string;
   customerName: string;
-  customerProfile: CustomerProfile;
+  /** Optional — historic CSV rows don't carry a profile classification. */
+  customerProfile?: CustomerProfile;
   repFullName?: string;
   cityName?: string;
   ufId: string;
@@ -45,6 +52,8 @@ export interface NormalizedSale {
   unitCost?: number;
   date: Date;
   sourceUpdatedAt: Date;
+  /** Coleção da venda — ex: 'VERAO_2020', 'INVERNO_2026', 'V27'. */
+  collection: string;
 }
 
 export interface SaleConnector extends BaseConnector {

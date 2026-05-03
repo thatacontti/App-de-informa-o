@@ -3,11 +3,32 @@
 // packages/jobs free of the real-vs-mock branching.
 
 import * as path from 'node:path';
+import { Base44Connector, type Base44Mapper } from './base44';
+import { makeSaleMapper, makeSalesDataMapper } from './base44-mappers';
 import { CrmApiConnector } from './crm-api';
+import { CsvHistoricoConnector } from './csv-historico';
 import { ErpPostgresConnector } from './erp-postgres';
 import { FixtureSaleConnector, FixtureTargetConnector } from './fixture';
 import { SharePointXlsxConnector } from './sharepoint-xlsx';
 import type { ConnectorType, SaleConnector, TargetConnector } from './types';
+
+// Registry de mappers Base44 — entity schema é app-specific, então
+// cada DataSource carrega `config.mapperName` apontando pra uma chave
+// daqui. Adicionar um novo app = registrar um mapper novo.
+const BASE44_MAPPERS = new Map<string, Base44Mapper>();
+
+export function registerBase44Mapper(name: string, mapper: Base44Mapper): void {
+  BASE44_MAPPERS.set(name, mapper);
+}
+
+export function getBase44Mapper(name: string): Base44Mapper | undefined {
+  return BASE44_MAPPERS.get(name);
+}
+
+// Mappers built-in pro app `catarina-vibe-flow.base44.app`. Outras
+// apps podem registrar mappers custom em runtime via registerBase44Mapper.
+registerBase44Mapper('sale-default', makeSaleMapper());
+registerBase44Mapper('salesdata-default', makeSalesDataMapper());
 
 export interface DataSourceSpec {
   type: ConnectorType;
@@ -28,26 +49,68 @@ export function createSaleConnector(spec: DataSourceSpec, opts: FactoryOptions):
     throw new Error(`createSaleConnector does not handle XLSX — use createTargetConnector for ${spec.name}`);
   }
 
-  if (opts.useMock) {
+  // Mock mode applies only to live sources (ERP / CRM). The CSV histórico
+  // already reads from a fixed file so there's nothing to mock.
+  if (opts.useMock && spec.type !== 'CSV_HISTORICO') {
     return new FixtureSaleConnector({ type: spec.type, fixturesDir: opts.fixturesDir, name: spec.name });
   }
 
-  if (spec.type === 'ERP_DB') {
-    return new ErpPostgresConnector({
-      connectionString: spec.endpoint,
-      name: spec.name,
-      view: spec.config?.['view'],
-    });
-  }
+  switch (spec.type) {
+    case 'ERP_DB':
+      return new ErpPostgresConnector({
+        connectionString: spec.endpoint,
+        name: spec.name,
+        view: spec.config?.['view'],
+      });
 
-  // CRM_API
-  const token = spec.config?.['token'];
-  if (!token) throw new Error(`CRM connector ${spec.name} requires config.token`);
-  return new CrmApiConnector({
-    baseUrl: spec.endpoint,
-    token,
-    name: spec.name,
-  });
+    case 'CRM_API': {
+      const token = spec.config?.['token'];
+      if (!token) throw new Error(`CRM connector ${spec.name} requires config.token`);
+      return new CrmApiConnector({
+        baseUrl: spec.endpoint,
+        token,
+        name: spec.name,
+      });
+    }
+
+    case 'CSV_HISTORICO':
+      // `endpoint` is an absolute path to the CSV file inside the container.
+      return new CsvHistoricoConnector({
+        filePath: spec.endpoint,
+        name: spec.name,
+      });
+
+    case 'BASE44_API': {
+      // `endpoint` = appId. config = { apiKey, entityName, mapperName,
+      // incrementalField? }. mapperName aponta pro registry acima.
+      const apiKey = spec.config?.['apiKey'];
+      const entityName = spec.config?.['entityName'];
+      const mapperName = spec.config?.['mapperName'];
+      if (!apiKey) throw new Error(`Base44 connector ${spec.name} requires config.apiKey`);
+      if (!entityName) throw new Error(`Base44 connector ${spec.name} requires config.entityName`);
+      if (!mapperName) throw new Error(`Base44 connector ${spec.name} requires config.mapperName`);
+      const mapper = BASE44_MAPPERS.get(mapperName);
+      if (!mapper) {
+        throw new Error(
+          `Base44 connector ${spec.name}: mapper '${mapperName}' não registrado. ` +
+            `Registrar via registerBase44Mapper() em packages/connectors antes de criar o DataSource.`,
+        );
+      }
+      return new Base44Connector({
+        appId: spec.endpoint,
+        apiKey,
+        entityName,
+        mapper,
+        ...(spec.config?.['incrementalField']
+          ? { incrementalField: spec.config['incrementalField'] }
+          : {}),
+        ...(spec.config?.['serverUrl']
+          ? { serverUrl: spec.config['serverUrl'] }
+          : {}),
+        name: spec.name,
+      });
+    }
+  }
 }
 
 export function createTargetConnector(spec: DataSourceSpec, opts: FactoryOptions): TargetConnector {

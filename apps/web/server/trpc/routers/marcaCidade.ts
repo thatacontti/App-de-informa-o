@@ -10,6 +10,7 @@ import {
 } from '@painel/shared';
 import { db } from '@/lib/db';
 import { router, requireAction } from '@/lib/trpc/server';
+import { loadBaseline } from './_baseline';
 
 const PROFILE_ORDER: CustomerProfile[] = [
   'VIP_3PLUS',
@@ -38,10 +39,8 @@ export const marcaCidadeRouter = router({
   dashboard: requireAction('view:marca-cidade')
     .input(FilterSchema)
     .query(async ({ input }) => {
-      const sourceFilter = { source: 'fixture' as const };
-
       const fullSales = await db.sale.findMany({
-        where: buildSaleWhere(input, sourceFilter),
+        where: buildSaleWhere(input),
         select: {
           customerId: true,
           cityId: true,
@@ -72,21 +71,14 @@ export const marcaCidadeRouter = router({
       const noBrandFilter = { ...input };
       delete noBrandFilter.brand;
       const dataMacro = await db.sale.findMany({
-        where: buildSaleWhere(noBrandFilter, sourceFilter),
+        where: buildSaleWhere(noBrandFilter),
         select: { customerId: true, brand: true, productLine: true, value: true },
       });
 
-      // V26 baseline.
-      const v26Rows = await db.customerBrandRevenue.findMany({
-        where: { period: 'V26' },
-        select: { customerId: true, brand: true, value: true },
-      });
-      const V26M = new Map<string, Partial<Record<Brand, number>>>();
-      for (const r of v26Rows) {
-        const m = V26M.get(r.customerId) ?? {};
-        m[r.brand] = Number(r.value);
-        V26M.set(r.customerId, m);
-      }
+      // Baseline (per customer × brand) — V26 do CustomerBrandRevenue
+      // por padrão, ou somatório do Sale na coleção escolhida quando o
+      // usuário pediu uma comparação ano-a-ano qualquer.
+      const V26M = await loadBaseline(db, input.compareCollection);
 
       const recurringSet = new Set<string>();
       for (const r of dataMacro) if (V26M.has(r.customerId)) recurringSet.add(r.customerId);
@@ -99,18 +91,23 @@ export const marcaCidadeRouter = router({
         cityProfile: computeCityProfile(X),
         brandByProfile: computeBrandByProfile(X),
         topCities: computeTopCities(X),
+        comparison: {
+          baseline: input.compareCollection ?? 'V26',
+          current: input.collection ?? 'V27',
+        },
       };
     }),
 });
 
-function buildSaleWhere(filter: Filter, base: { source: string }) {
-  const where: Record<string, unknown> = { source: base.source };
+function buildSaleWhere(filter: Filter) {
+  const where: Record<string, unknown> = {};
   if (filter.brand) where['brand'] = filter.brand;
   if (filter.ufId) where['ufId'] = filter.ufId;
   if (filter.repId) where['repId'] = filter.repId;
   if (filter.productGroup) where['productGroup'] = filter.productGroup;
   if (filter.line) where['productLine'] = filter.line;
   if (filter.priceTier) where['priceTier'] = filter.priceTier;
+  if (filter.collection) where['collection'] = filter.collection;
   return where;
 }
 

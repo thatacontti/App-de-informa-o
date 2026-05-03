@@ -40,7 +40,7 @@ export const mapaRouter = router({
     .input(FilterSchema)
     .query(async ({ input }) => {
       const sales = await db.sale.findMany({
-        where: buildSaleWhere(input, { source: 'fixture' }),
+        where: buildSaleWhere(input),
         select: {
           productSku: true,
           brand: true,
@@ -164,14 +164,15 @@ function toCard(s: { sku: string; name: string; pm: number; qty: number; value: 
   };
 }
 
-function buildSaleWhere(filter: Filter, base: { source: string }) {
-  const where: Record<string, unknown> = { source: base.source };
+function buildSaleWhere(filter: Filter) {
+  const where: Record<string, unknown> = {};
   if (filter.brand) where['brand'] = filter.brand;
   if (filter.ufId) where['ufId'] = filter.ufId;
   if (filter.repId) where['repId'] = filter.repId;
   if (filter.productGroup) where['productGroup'] = filter.productGroup;
   if (filter.line) where['productLine'] = filter.line;
   if (filter.priceTier) where['priceTier'] = filter.priceTier;
+  if (filter.collection) where['collection'] = filter.collection;
   return where;
 }
 

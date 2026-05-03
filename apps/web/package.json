@@ -13,7 +13,8 @@
     "test:e2e": "playwright test",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "prisma db seed"
+    "prisma:seed": "SEED_MODE=demo prisma db seed",
+    "prisma:seed:structural": "SEED_MODE=structural prisma db seed"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

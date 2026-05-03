@@ -28,6 +28,9 @@ RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
+COPY --from=deps /app/packages/connectors/node_modules ./packages/connectors/node_modules
+COPY --from=deps /app/packages/jobs/node_modules ./packages/jobs/node_modules
+COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -54,6 +57,9 @@ COPY --from=builder /app/apps/web/public ./apps/web/public
 COPY --from=builder /app/apps/web/prisma ./apps/web/prisma
 COPY --from=builder /app/apps/web/node_modules/.prisma ./apps/web/node_modules/.prisma
 COPY --from=builder /app/apps/web/node_modules/@prisma ./apps/web/node_modules/@prisma
+# Histórico de coleções — necessário pro CsvHistoricoConnector quando
+# o admin dispara Sincronizar nas DataSources de tipo CSV_HISTORICO.
+COPY --from=builder /app/Pasta1_v*.csv ./
 COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 RUN mkdir -p /app/apps/web/storage/briefings && chown -R painel:nodejs /app/apps/web/storage

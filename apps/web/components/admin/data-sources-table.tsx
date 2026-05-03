@@ -27,13 +27,27 @@ function formatType(t: string) {
   if (t === 'ERP_DB') return 'ERP · Postgres';
   if (t === 'CRM_API') return 'CRM · REST';
   if (t === 'XLSX') return 'SharePoint · XLSX';
+  if (t === 'CSV_HISTORICO') return 'CSV · Histórico';
+  if (t === 'BASE44_API') return 'Base44 · API';
   return t;
 }
 
 export function DataSourcesTable({ role }: { role: Role }) {
-  const sources = trpc.dataSources.list.useQuery();
+  // Auto-refresh every 3s while any sync is in-flight so the user sees
+  // the RUNNING → SUCCESS/FAILED transition without manual reload.
+  const sources = trpc.dataSources.list.useQuery(undefined, {
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      const anyRunning = data?.sources?.some(
+        (s) => s.lastSyncStatus === 'RUNNING' || s.syncs[0]?.status === 'RUNNING',
+      );
+      return anyRunning ? 3000 : false;
+    },
+  });
   const test = trpc.dataSources.testConnection.useMutation();
   const trigger = trpc.dataSources.triggerSync.useMutation();
+  const enqueue = trpc.dataSources.enqueueSync.useMutation();
+  const reclassify = trpc.dataSources.reclassifyProfiles.useMutation();
   const [feedback, setFeedback] = useState<{ id: string; ok: boolean; msg: string } | null>(null);
 
   const canTrigger = can(role, 'admin:trigger-sync');
@@ -114,7 +128,36 @@ export function DataSourcesTable({ role }: { role: Role }) {
                       >
                         Testar
                       </Button>
-                      {canTrigger && (
+                      {canTrigger && (s.type === 'CSV_HISTORICO' || s.type === 'BASE44_API') && (
+                        // Heavy historic loads (~100k rows/file) always go
+                        // through BullMQ — the HTTP request would time out
+                        // before the inline upsert finished.
+                        <Button
+                          size="sm"
+                          disabled={enqueue.isPending}
+                          onClick={async () => {
+                            enqueue.reset();
+                            try {
+                              const r = await enqueue.mutateAsync({ dataSourceId: s.id });
+                              setFeedback({
+                                id: s.id,
+                                ok: true,
+                                msg: `${s.name}: enfileirado (job ${r.jobId}). A tabela atualiza sozinha.`,
+                              });
+                              await sources.refetch();
+                            } catch (e) {
+                              setFeedback({
+                                id: s.id,
+                                ok: false,
+                                msg: `${s.name}: ${(e as Error).message}`,
+                              });
+                            }
+                          }}
+                        >
+                          Enfileirar
+                        </Button>
+                      )}
+                      {canTrigger && s.type !== 'CSV_HISTORICO' && s.type !== 'BASE44_API' && (
                         <Button
                           size="sm"
                           disabled={trigger.isPending}
@@ -151,6 +194,45 @@ export function DataSourcesTable({ role }: { role: Role }) {
           </tbody>
         </table>
       </div>
+
+      {canTrigger && (
+        <div className="flex items-center justify-between rounded-2xl border border-amber/15 bg-paper px-5 py-3.5">
+          <div>
+            <div className="font-medium text-deep">Reclassificar perfis de cliente</div>
+            <div className="text-[0.78rem] text-ink-3">
+              Recalcula <b>CustomerProfile</b> (VIP_3PLUS / VIP / FREQUENTE / REGULAR / NOVO_25 /
+              NOVO_27) a partir do histórico ingerido. Use após carregar uma coleção nova.
+            </div>
+          </div>
+          <Button
+            size="sm"
+            disabled={reclassify.isPending}
+            onClick={async () => {
+              reclassify.reset();
+              try {
+                const r = await reclassify.mutateAsync(undefined);
+                const dist = Object.entries(r.byProfile)
+                  .filter(([, n]) => n > 0)
+                  .map(([p, n]) => `${p}=${n}`)
+                  .join(' · ');
+                setFeedback({
+                  id: '_classify',
+                  ok: true,
+                  msg: `${r.totalCustomers} clientes · ${r.changed} reclassificados (${r.current ?? '—'} vs ${r.previous ?? '—'}). ${dist}`,
+                });
+              } catch (e) {
+                setFeedback({
+                  id: '_classify',
+                  ok: false,
+                  msg: `Falha: ${(e as Error).message}`,
+                });
+              }
+            }}
+          >
+            Reclassificar
+          </Button>
+        </div>
+      )}
 
       <div className="rounded-xl bg-beige/30 px-4 py-3 text-[0.72rem] text-ink-3">
         <strong className="text-terra">Modo mock</strong> · As 3 fontes leem de

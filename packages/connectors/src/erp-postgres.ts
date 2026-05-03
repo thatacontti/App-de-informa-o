@@ -42,6 +42,8 @@ export interface ErpRow {
   unit_cost: string | number | null;
   date: Date | string;
   source_updated_at: Date | string;
+  /** Optional — view may omit it; falls back to V27. */
+  collection?: string | null;
 }
 
 export interface ErpPostgresOptions {
@@ -137,6 +139,7 @@ export class ErpPostgresConnector implements SaleConnector {
       unitCost: toNumber(row.unit_cost) ?? undefined,
       date: toDate(row.date),
       sourceUpdatedAt: toDate(row.source_updated_at),
+      collection: row.collection ?? 'V27',
     };
   }
 

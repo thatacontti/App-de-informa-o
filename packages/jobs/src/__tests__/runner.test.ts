@@ -45,6 +45,7 @@ const sale = (id: string): NormalizedSale => ({
   value: 500,
   date: new Date('2026-04-28'),
   sourceUpdatedAt: new Date('2026-04-28T12:00:00Z'),
+  collection: 'V27',
 });
 
 describe.runIf(RUN_DB_TESTS)('runSaleSync · lifecycle', () => {

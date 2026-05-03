@@ -14,6 +14,7 @@ import {
   fmtBRL,
   fmtNum,
   fmtPct,
+  formatCollectionLabel,
 } from '../index';
 
 describe('label maps round-trip · enum key ↔ display label', () => {
@@ -67,5 +68,24 @@ describe('formatters', () => {
   it('fmtPct prefixes positive values with +', () => {
     expect(fmtPct(2.0)).toBe('+2.0%');
     expect(fmtPct(-1.3)).toBe('-1.3%');
+  });
+});
+
+describe('formatCollectionLabel', () => {
+  it('formats canonical collection codes', () => {
+    expect(formatCollectionLabel('VERAO_2020')).toBe('Verão 2020');
+    expect(formatCollectionLabel('INVERNO_2026')).toBe('Inverno 2026');
+    expect(formatCollectionLabel('TROPICAL_2025')).toBe('Tropical 2025');
+    expect(formatCollectionLabel('VERAO_2023_PRIMAVERA')).toBe('Verão 2023 · Primavera');
+    expect(formatCollectionLabel('VERAO_2025_VERAO')).toBe('Verão 2025 · Verão');
+  });
+
+  it('passes legacy short codes through', () => {
+    expect(formatCollectionLabel('V27')).toBe('V27');
+    expect(formatCollectionLabel('V26')).toBe('V26');
+  });
+
+  it('returns empty string for empty input', () => {
+    expect(formatCollectionLabel('')).toBe('');
   });
 });

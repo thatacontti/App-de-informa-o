@@ -62,6 +62,7 @@ export async function upsertSales(
         value: s.value,
         cost: s.cost,
         unitCost: s.unitCost,
+        collection: s.collection,
         date: s.date,
         source,
         sourceUpdatedAt: s.sourceUpdatedAt,
@@ -157,15 +158,20 @@ async function ensureCustomers(
   for (const [id, s] of wanted) {
     const cityId = s.cityName ? (cityByKey.get(`${s.ufId}::${s.cityName}`) ?? null) : null;
     const repId = s.repFullName ? (repByName.get(s.repFullName) ?? null) : null;
-    const data = {
+    const baseData = {
       id,
       code: id,
       name: s.customerName,
-      profile: s.customerProfile,
       cityId,
       repId,
       ufId: s.ufId,
     };
+    // For historic ingestion (no profile classification yet), don't
+    // touch the profile column — let the column default handle creates
+    // and preserve any existing classification on updates.
+    const data = s.customerProfile
+      ? { ...baseData, profile: s.customerProfile }
+      : baseData;
     await db.customer.upsert({
       where: { id },
       update: data,

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import {
   BRAND_LABEL,
   BRANDS,
@@ -7,6 +8,7 @@ import {
   LINE_LABEL,
   PRICE_TIERS,
   PRICE_TIER_LABEL,
+  formatCollectionLabel,
   type Brand,
   type Filter,
   type ProductLine,
@@ -73,6 +75,21 @@ const SHORT_REP = (s: string) =>
 export function FilterBar() {
   const { filter, setFilter } = useFilter();
   const meta = trpc.meta.filterOptions.useQuery();
+
+  // Default the chip to the most recent collection on first meta load
+  // so the dashboard shows a single coherent cycle instead of summing
+  // 7 anos de histórico (KPIs gigantes, SSS sem sentido). User can pick
+  // 'Todas' or qualquer outra coleção depois.
+  const initialized = useRef(false);
+  useEffect(() => {
+    if (initialized.current) return;
+    const collections = meta.data?.collections;
+    if (!collections || collections.length === 0) return;
+    initialized.current = true;
+    if (filter.collection === undefined) {
+      setFilter('collection', collections[0]);
+    }
+  }, [meta.data, filter.collection, setFilter]);
 
   return (
     <div className="sticky top-[57px] z-20 bg-cream/85 px-9 pb-3 pt-3 backdrop-blur">
@@ -175,6 +192,58 @@ export function FilterBar() {
               />
             ))}
           </Group>
+
+          {(meta.data?.collections ?? []).length > 0 && (
+            <Group label="Coleção">
+              <Chip
+                label="Todas"
+                active={filter.collection === undefined}
+                onClick={() => setFilter('collection', undefined)}
+              />
+              {(meta.data?.collections ?? []).map((c) => (
+                <Chip
+                  key={c}
+                  label={formatCollectionLabel(c)}
+                  title={c}
+                  active={filter.collection === c}
+                  onClick={() =>
+                    setFilter('collection', filter.collection === c ? undefined : c)
+                  }
+                />
+              ))}
+            </Group>
+          )}
+
+          {/* Comparar com: aparece quando há mais de uma coleção pra
+              comparar e o usuário já escolheu uma como recorte. SSS /
+              YoY usam a coleção escolhida como baseline (substitui o
+              V26 padrão). */}
+          {(meta.data?.collections ?? []).length > 1 && filter.collection && (
+            <Group label="Comparar com">
+              <Chip
+                label="V26 (padrão)"
+                title="usa CustomerBrandRevenue period=V26 como baseline"
+                active={filter.compareCollection === undefined}
+                onClick={() => setFilter('compareCollection', undefined)}
+              />
+              {(meta.data?.collections ?? [])
+                .filter((c) => c !== filter.collection)
+                .map((c) => (
+                  <Chip
+                    key={c}
+                    label={formatCollectionLabel(c)}
+                    title={c}
+                    active={filter.compareCollection === c}
+                    onClick={() =>
+                      setFilter(
+                        'compareCollection',
+                        filter.compareCollection === c ? undefined : c,
+                      )
+                    }
+                  />
+                ))}
+            </Group>
+          )}
         </div>
       </div>
     </div>

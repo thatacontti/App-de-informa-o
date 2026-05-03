@@ -4,13 +4,38 @@ import {
   createSaleConnector,
   createTargetConnector,
   defaultFixturesDir,
+  registerBase44Mapper,
 } from '../factory';
+import { Base44Connector } from '../base44';
 import { CrmApiConnector } from '../crm-api';
+import { CsvHistoricoConnector } from '../csv-historico';
 import { ErpPostgresConnector } from '../erp-postgres';
 import { FixtureSaleConnector, FixtureTargetConnector } from '../fixture';
 import { SharePointXlsxConnector } from '../sharepoint-xlsx';
+import type { NormalizedSale } from '../types';
 
 const FIXTURES_DIR = path.resolve(__dirname, '../../../..', 'painel_v27');
+
+// Registra um mapper de teste no registry global. Não polui outros
+// testes porque o nome é único.
+const NOOP_MAPPER = (_rec: Record<string, unknown>, idx: number): NormalizedSale => ({
+  externalId: `t-${idx}`,
+  productSku: 'SKU',
+  productName: 'P',
+  brand: 'KIKI',
+  productLine: 'INFANTIL',
+  productGroup: 'X',
+  priceTier: 'MEDIO',
+  customerId: 'C',
+  customerName: 'C',
+  ufId: 'SP',
+  qty: 1,
+  value: 1,
+  date: new Date(0),
+  sourceUpdatedAt: new Date(0),
+  collection: 'V27',
+});
+registerBase44Mapper('test-mapper', NOOP_MAPPER);
 
 describe('factory · mock mode', () => {
   it('returns FixtureSaleConnector for ERP_DB', () => {
@@ -86,6 +111,65 @@ describe('factory · real mode', () => {
         { useMock: false, fixturesDir: FIXTURES_DIR },
       ),
     ).toThrow(/requires config/);
+  });
+
+  it('builds a CsvHistoricoConnector pointing at the configured file', () => {
+    const c = createSaleConnector(
+      { type: 'CSV_HISTORICO', name: 'historico-v01', endpoint: '/app/Pasta1_v01.csv' },
+      { useMock: false, fixturesDir: FIXTURES_DIR },
+    );
+    expect(c).toBeInstanceOf(CsvHistoricoConnector);
+    expect(c.type).toBe('CSV_HISTORICO');
+  });
+
+  it('CSV_HISTORICO ignores useMock — there is no live source to mock', () => {
+    const c = createSaleConnector(
+      { type: 'CSV_HISTORICO', name: 'historico-v01', endpoint: '/app/Pasta1_v01.csv' },
+      { useMock: true, fixturesDir: FIXTURES_DIR },
+    );
+    expect(c).toBeInstanceOf(CsvHistoricoConnector);
+  });
+
+  it('builds a Base44Connector when apiKey/entityName/mapperName are present', () => {
+    const c = createSaleConnector(
+      {
+        type: 'BASE44_API',
+        name: 'base44-sales',
+        endpoint: 'app-id-xyz',
+        config: { apiKey: 'k', entityName: 'Sale', mapperName: 'test-mapper' },
+      },
+      { useMock: false, fixturesDir: FIXTURES_DIR },
+    );
+    expect(c).toBeInstanceOf(Base44Connector);
+    expect(c.type).toBe('BASE44_API');
+  });
+
+  it('rejects BASE44_API without apiKey', () => {
+    expect(() =>
+      createSaleConnector(
+        {
+          type: 'BASE44_API',
+          name: 'base44-sales',
+          endpoint: 'app-id-xyz',
+          config: { entityName: 'Sale', mapperName: 'test-mapper' },
+        },
+        { useMock: false, fixturesDir: FIXTURES_DIR },
+      ),
+    ).toThrow(/requires config\.apiKey/);
+  });
+
+  it('rejects BASE44_API when mapperName is unknown to the registry', () => {
+    expect(() =>
+      createSaleConnector(
+        {
+          type: 'BASE44_API',
+          name: 'base44-sales',
+          endpoint: 'app-id-xyz',
+          config: { apiKey: 'k', entityName: 'Sale', mapperName: 'never-registered' },
+        },
+        { useMock: false, fixturesDir: FIXTURES_DIR },
+      ),
+    ).toThrow(/never-registered.*não registrado/);
   });
 });
 

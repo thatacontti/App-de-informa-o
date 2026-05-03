@@ -17,6 +17,7 @@ async function main() {
     redisUrl: process.env['REDIS_URL'] ?? 'redis://localhost:6379',
     databaseUrl: process.env['DATABASE_URL'],
     useMock: process.env['USE_MOCK_CONNECTORS'] !== 'false',
+    reclassifyAfterSync: process.env['RECLASSIFY_AFTER_SYNC'] !== 'false',
     slackToken: process.env['SLACK_BOT_TOKEN'],
     slackAlertsChannel: process.env['SLACK_CHANNEL_ALERTS'],
     slackDiretoriaChannel: process.env['SLACK_CHANNEL_DIRETORIA'],
@@ -41,7 +42,10 @@ async function main() {
   const connection = makeRedisConnection(env.redisUrl);
   const syncQueue = createSyncQueue(connection);
   const briefingQueue = createBriefingQueue(connection);
-  const syncWorker = createSyncWorker(db, connection, { useMock: env.useMock });
+  const syncWorker = createSyncWorker(db, connection, {
+    useMock: env.useMock,
+    reclassifyAfterSync: env.reclassifyAfterSync,
+  });
   const briefingWorker = createBriefingWorker(db, connection, {
     slackChannel: env.slackDiretoriaChannel,
   });

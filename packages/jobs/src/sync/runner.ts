@@ -19,6 +19,7 @@ import { upsertSales, type UpsertSalesResult } from '../adapter/upsert-sales';
 import { upsertTargets, type UpsertTargetsResult } from '../adapter/upsert-targets';
 import { postSlack } from '../notifications/slack';
 import { checkAndAlertDeviations } from '../alerts/deviation';
+import { classifyProfiles } from '../classify/profiles';
 
 export interface SaleSyncResult {
   syncRunId: string;
@@ -42,10 +43,21 @@ export interface TargetSyncResult {
   errorMessage?: string;
 }
 
+export interface RunSaleSyncOptions {
+  /**
+   * Roda `classifyProfiles(db)` automaticamente após upsert bem-sucedido
+   * pra que clientes recém-ingeridos saiam do default `NOVO_27` e
+   * recebam VIP/FREQUENTE/REGULAR conforme o footprint de coleções.
+   * Default: true. Falha do classifier não derruba o sync (loga warn).
+   */
+  reclassifyAfterSync?: boolean;
+}
+
 export async function runSaleSync(
   db: PrismaClient,
   dataSourceId: string,
   connector: SaleConnector,
+  opts: RunSaleSyncOptions = {},
 ): Promise<SaleSyncResult> {
   const ds = await db.dataSource.findUniqueOrThrow({ where: { id: dataSourceId } });
   const since = ds.lastSyncAt ?? new Date(0);
@@ -92,6 +104,43 @@ export async function runSaleSync(
     // Fire-and-forget deviation alerts after a successful sale ingest.
     // We swallow errors so the sync stays SUCCESS even if Slack misbehaves.
     await checkAndAlertDeviations(db, { source: ds.type }).catch(() => undefined);
+
+    // Auto-reclassify CustomerProfile when the sync brought new rows.
+    // Idempotente — só atualiza clientes cujo profile mudou. Cost: ~1
+    // groupBy + 6 updateMany batches. Falha aqui não invalida o SUCCESS.
+    if ((opts.reclassifyAfterSync ?? true) && r.recordsOut > 0) {
+      try {
+        const cls = await classifyProfiles(db);
+        await db.auditLog.create({
+          data: {
+            action: 'profiles.auto_reclassified',
+            payload: {
+              triggeredBySyncRunId: run.id,
+              dataSourceId,
+              totalCustomers: cls.totalCustomers,
+              changed: cls.changed,
+              current: cls.current,
+              previous: cls.previous,
+            },
+          },
+        });
+      } catch (e) {
+        // Log via auditLog em vez de stdout — auditável mesmo sem
+        // logger configurado. Sync já está SUCCESS no DB, não reverte.
+        await db.auditLog
+          .create({
+            data: {
+              action: 'profiles.auto_reclassify_failed',
+              payload: {
+                triggeredBySyncRunId: run.id,
+                dataSourceId,
+                error: e instanceof Error ? e.message : String(e),
+              },
+            },
+          })
+          .catch(() => undefined);
+      }
+    }
 
     return {
       syncRunId: run.id,
