@@ -413,6 +413,31 @@ async function seedDataSources() {
   return sources.length;
 }
 
+// Default URLs for the static GitHub fallback the dashboard reads from
+// when the database has no Sales rows for a given collection. The admin
+// can override any of these from /admin/upload.
+const DEFAULT_APP_CONFIG: Record<string, string> = {
+  sales_url:
+    'https://raw.githubusercontent.com/thatacontti/app-de-informa-o/main/painel_v27/d_v12.json',
+  v26_url:
+    'https://raw.githubusercontent.com/thatacontti/app-de-informa-o/main/painel_v27/v26_por_marca.json',
+  cidades_url:
+    'https://raw.githubusercontent.com/thatacontti/app-de-informa-o/main/painel_v27/cidade_perfil.json',
+  compare_collection_code: 'V26',
+  active_collection_code: 'V27',
+};
+
+async function seedAppConfig() {
+  for (const [key, value] of Object.entries(DEFAULT_APP_CONFIG)) {
+    await prisma.appConfig.upsert({
+      where: { key },
+      update: {}, // never overwrite an admin-set value
+      create: { key, value },
+    });
+  }
+  return Object.keys(DEFAULT_APP_CONFIG).length;
+}
+
 async function seedTargets(d: Fixture) {
   // Sample targets — real values come from the SharePoint XLSX (step 5).
   const totalV27 = d.recs.reduce((s, r) => s + r.f, 0);
@@ -499,6 +524,7 @@ async function main() {
   const users = await seedUsers();         console.log(`  ✓ users        ${users}`);
   const ufs = await seedUFs();             console.log(`  ✓ UFs          ${ufs}`);
   const sources = await seedDataSources(); console.log(`  ✓ data sources ${sources}`);
+  const cfg = await seedAppConfig();       console.log(`  ✓ app config   ${cfg}`);
 
   if (mode === 'demo') {
     console.log(`  fixtures dir: ${FIXTURES_DIR}`);

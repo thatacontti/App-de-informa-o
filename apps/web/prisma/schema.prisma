@@ -61,7 +61,7 @@ model AuditLog {
 
 enum Brand {
   KIKI
-  MA       // Menina Anjo
+  MA // Menina Anjo
   VALENT
 }
 
@@ -74,12 +74,12 @@ enum ProductLine {
 
 enum PriceTier {
   ENTRADA
-  MEDIO    // Médio
+  MEDIO // Médio
   PREMIUM
 }
 
 enum CustomerProfile {
-  VIP_3PLUS  // VIP 3+
+  VIP_3PLUS // VIP 3+
   VIP
   FREQUENTE
   REGULAR
@@ -96,11 +96,11 @@ enum BrazilRegion {
 }
 
 enum IbgePopulationTier {
-  METRO     // > 1M
-  GRANDE    // 500k - 1M
-  MEDIA     // 100k - 500k
-  PEQUENA   // 20k - 100k
-  MICRO     // < 20k
+  METRO // > 1M
+  GRANDE // 500k - 1M
+  MEDIA // 100k - 500k
+  PEQUENA // 20k - 100k
+  MICRO // < 20k
 }
 
 enum DataSourceType {
@@ -146,11 +146,11 @@ model UF {
 }
 
 model City {
-  id        String             @id @default(cuid())
-  name      String
-  ufId      String
-  ibgeTier  IbgePopulationTier
-  popK      Int? // population in thousands (when known)
+  id       String             @id @default(cuid())
+  name     String
+  ufId     String
+  ibgeTier IbgePopulationTier
+  popK     Int? // population in thousands (when known)
 
   uf        UF         @relation(fields: [ufId], references: [id])
   customers Customer[]
@@ -189,19 +189,19 @@ model RepUF {
 }
 
 model Customer {
-  id        String          @id // original ERP customer ID
-  code      String          @unique
-  name      String
+  id      String          @id // original ERP customer ID
+  code    String          @unique
+  name    String
   // Default for historic ingestion (CSV without classification). The
   // active V26/V27 cycle overwrites it with the real profile.
-  profile   CustomerProfile @default(NOVO_27)
-  cityId    String?
-  repId     String?
-  ufId      String
+  profile CustomerProfile @default(NOVO_27)
+  cityId  String?
+  repId   String?
+  ufId    String
 
-  city  City?           @relation(fields: [cityId], references: [id])
-  rep   Representative? @relation(fields: [repId], references: [id])
-  uf    UF              @relation(fields: [ufId], references: [id])
+  city  City?                  @relation(fields: [cityId], references: [id])
+  rep   Representative?        @relation(fields: [repId], references: [id])
+  uf    UF                     @relation(fields: [ufId], references: [id])
   sales Sale[]
   v26   CustomerBrandRevenue[]
 
@@ -215,8 +215,8 @@ model Customer {
 model CustomerBrandRevenue {
   customerId String
   brand      Brand
-  period     String   // 'V26' for now; future periods reuse the table
-  value      Decimal  @db.Decimal(14, 2)
+  period     String // 'V26' for now; future periods reuse the table
+  value      Decimal @db.Decimal(14, 2)
 
   customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
@@ -234,12 +234,12 @@ model Product {
   name         String
   brand        Brand
   line         ProductLine
-  productGroup String      // 14 groups: VESTIDO, MACAQUINHO, CONJUNTOS C/ SHORTS, etc.
-  coordSeason  String?     // RESORT 2027, SUNSET 2027, etc.
+  productGroup String // 14 groups: VESTIDO, MACAQUINHO, CONJUNTOS C/ SHORTS, etc.
+  coordSeason  String? // RESORT 2027, SUNSET 2027, etc.
   priceTier    PriceTier
   unitPrice    Decimal?    @db.Decimal(10, 2) // PM (preço médio)
   designer     String?
-  imageUrl     String?     // populated from sku_final.json on demand
+  imageUrl     String? // populated from sku_final.json on demand
 
   sales Sale[]
 
@@ -256,13 +256,13 @@ model Product {
 // analytical queries — most filters from the FilterSchema (brand, uf,
 // rep, group, line, priceTier) hit indexed columns directly.
 model Sale {
-  id              String      @id @default(cuid())
-  externalId      String      // unique key from the upstream source
-  productSku      String
-  customerId      String
-  repId           String?
-  cityId          String?
-  ufId            String
+  id         String  @id @default(cuid())
+  externalId String // unique key from the upstream source
+  productSku String
+  customerId String
+  repId      String?
+  cityId     String?
+  ufId       String
 
   // Denormalised facets — kept in-row to avoid joins on hot paths.
   brand        Brand
@@ -270,17 +270,17 @@ model Sale {
   productGroup String
   priceTier    PriceTier
 
-  qty       Int
-  value     Decimal  @db.Decimal(14, 2) // faturamento da nota
-  cost      Decimal? @db.Decimal(14, 2)
-  unitCost  Decimal? @db.Decimal(10, 4)
+  qty      Int
+  value    Decimal  @db.Decimal(14, 2) // faturamento da nota
+  cost     Decimal? @db.Decimal(14, 2)
+  unitCost Decimal? @db.Decimal(10, 4)
 
   // Coleção da venda (ex: "VERAO_2020", "INVERNO_2026"). Necessário
   // pra comparar histórico ano-a-ano e filtrar coleções específicas.
-  collection      String
+  collection String
 
   date            DateTime
-  source          String   // 'fixture' | 'ERP_DB' | 'CRM_API' | 'XLSX' | 'CSV_HISTORICO'
+  source          String // 'fixture' | 'ERP_DB' | 'CRM_API' | 'XLSX' | 'CSV_HISTORICO'
   sourceUpdatedAt DateTime
   createdAt       DateTime @default(now())
 
@@ -310,7 +310,7 @@ model DataSource {
   type             DataSourceType
   name             String
   endpoint         String
-  configEncrypted  String?        // encrypted JSON for non-URL configs
+  configEncrypted  String? // encrypted JSON for non-URL configs
   frequencyMinutes Int            @default(5)
   active           Boolean        @default(true)
   lastSyncAt       DateTime?
@@ -347,14 +347,14 @@ model SyncRun {
 model Target {
   id            String      @id @default(cuid())
   scope         TargetScope
-  scopeKey      String      // brand code, UF id, rep id, or 'V27' for GLOBAL
+  scopeKey      String // brand code, UF id, rep id, or 'V27' for GLOBAL
   brand         Brand?
   ufId          String?
   repId         String?
   period        String // 'V27', '2026-04', etc.
   unit          TargetUnit  @default(BRL)
   valueTarget   Decimal     @db.Decimal(14, 2)
-  valueAchieved Decimal     @db.Decimal(14, 2) @default(0)
+  valueAchieved Decimal     @default(0) @db.Decimal(14, 2)
   updatedAt     DateTime    @updatedAt
 
   uf  UF?             @relation(fields: [ufId], references: [id])
@@ -376,4 +376,84 @@ model BriefingSnapshot {
   pdfPath       String?
 
   @@index([generatedAt])
+}
+
+// =====================================================
+// UPLOAD / CONFIG INFRASTRUCTURE
+// =====================================================
+
+// Generic batch tracker for ad-hoc uploads (Excia CSV, profiles CSV,
+// JSON config). Distinct from SyncRun, which is bound to a DataSource.
+// ImportBatch is created by /admin/upload, /admin/excia-import,
+// /admin/profiles-upload, etc.
+model ImportBatch {
+  id           String     @id @default(cuid())
+  source       String // 'EXCIA_CSV' | 'PROFILES_CSV' | 'SALES_JSON' | 'V26_JSON' | 'CIDADES_JSON'
+  filename     String?
+  collection   String? // when applicable (Excia import scoped to a collection)
+  recordsRead  Int        @default(0)
+  recordsOk    Int        @default(0)
+  recordsFail  Int        @default(0)
+  status       SyncStatus @default(RUNNING)
+  errorMessage String?
+  metadata     Json? // per-source extras (failed codclis, profile distribution, ...)
+  startedAt    DateTime   @default(now())
+  finishedAt   DateTime?
+  createdBy    String? // userId
+
+  @@index([source, startedAt])
+  @@index([status])
+  @@index([collection])
+}
+
+// Key/value config — currently URLs of fallback JSONs (sales/v26/cidades),
+// but flexible enough to hold any string-typed knob the admin needs to
+// flip without a deploy.
+model AppConfig {
+  key       String   @id // 'sales_url' | 'v26_url' | 'cidades_url' | 'compare_collection_code' | ...
+  value     String
+  updatedAt DateTime @updatedAt
+  updatedBy String? // userId
+}
+
+// Source-of-truth for codcli → CustomerProfile, written by the
+// /admin/profiles-upload CSV pipeline. Customer.profile mirrors this
+// for the active cycle — but ClientProfile holds the upload as-is so
+// re-runs/audits can compare against it.
+model ClientProfile {
+  codcli    String          @id // ERP customer code
+  profile   CustomerProfile
+  source    String          @default("UPLOAD") // 'UPLOAD' | 'DERIVED' | 'MANUAL'
+  updatedAt DateTime        @updatedAt
+
+  @@index([profile])
+}
+
+// Decoupled city → IBGE tier mapping uploaded via /admin/upload (cidades
+// JSON). City model carries the same data, but CityProfile is the
+// upload-friendly version: uniqued by (uf, cityName), no FK pressure.
+model CityProfile {
+  id        String             @id @default(cuid())
+  cityName  String
+  uf        String // 2-letter UF code
+  perfil    IbgePopulationTier
+  popMil    Int?
+  updatedAt DateTime           @updatedAt
+
+  @@unique([uf, cityName])
+  @@index([perfil])
+}
+
+// Raw V26 baseline uploaded via /admin/upload (v26 JSON). Distinct from
+// CustomerBrandRevenue (which is FK-constrained to Customer). BaselineV26
+// accepts uploads even when the Customer row doesn't exist yet — the
+// reclassification job is what mirrors valid rows into CustomerBrandRevenue.
+model BaselineV26 {
+  codcli    String
+  brand     Brand
+  value     Decimal  @db.Decimal(14, 2)
+  updatedAt DateTime @updatedAt
+
+  @@id([codcli, brand])
+  @@index([brand])
 }
