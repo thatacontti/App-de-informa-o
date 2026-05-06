@@ -23,6 +23,9 @@ export const ACTIONS = [
   'admin:datasources',
   'admin:trigger-sync',
   'admin:audit',
+  // Bulk uploads (CSV de perfis, JSONs de configuração, CSV Excia, etc.).
+  // Sempre Admin-only — escreve direto em tabelas de domínio.
+  'admin:upload',
 ] as const;
 
 export type Action = (typeof ACTIONS)[number];
@@ -52,6 +55,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Action, PermissionLevel>> = 
     'admin:datasources': 'allow',
     'admin:trigger-sync': 'allow',
     'admin:audit': 'allow',
+    'admin:upload': 'allow',
   },
   GESTOR: {
     'view:negocio': 'allow',
@@ -65,6 +69,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Action, PermissionLevel>> = 
     'admin:datasources': 'read',
     'admin:trigger-sync': 'deny',
     'admin:audit': 'deny',
+    'admin:upload': 'deny',
   },
   ANALISTA: {
     'view:negocio': 'allow',
@@ -78,6 +83,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Action, PermissionLevel>> = 
     'admin:datasources': 'read',
     'admin:trigger-sync': 'deny',
     'admin:audit': 'deny',
+    'admin:upload': 'deny',
   },
 };
 
@@ -115,6 +121,11 @@ export const ROUTE_PERMISSIONS: ReadonlyArray<{ pattern: RegExp; action: Action 
   { pattern: /^\/admin\/users(\/|$)/, action: 'admin:users' },
   { pattern: /^\/admin\/datasources(\/|$)/, action: 'admin:datasources' },
   { pattern: /^\/admin\/audit(\/|$)/, action: 'admin:audit' },
+  { pattern: /^\/admin\/profiles-upload(\/|$)/, action: 'admin:upload' },
+  { pattern: /^\/admin\/upload(\/|$)/, action: 'admin:upload' },
+  { pattern: /^\/admin\/excia-import(\/|$)/, action: 'admin:upload' },
+  { pattern: /^\/admin\/historical-rebase(\/|$)/, action: 'admin:upload' },
+  { pattern: /^\/admin\/cutover(\/|$)/, action: 'admin:upload' },
 ];
 
 export function actionForPath(pathname: string): Action | null {

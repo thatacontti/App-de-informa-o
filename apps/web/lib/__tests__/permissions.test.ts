@@ -85,6 +85,12 @@ describe('permissions matrix · row by row (mirrors briefing section 5)', () => 
     expect(can('GESTOR', 'admin:audit')).toBe(false);
     expect(can('ANALISTA', 'admin:audit')).toBe(false);
   });
+
+  it('Upload (CSV/JSON em massa) — Total/Negado/Negado', () => {
+    expect(can('ADMIN', 'admin:upload')).toBe(true);
+    expect(can('GESTOR', 'admin:upload')).toBe(false);
+    expect(can('ANALISTA', 'admin:upload')).toBe(false);
+  });
 });
 
 describe('assertCan', () => {
@@ -108,6 +114,11 @@ describe('actionForPath', () => {
     expect(actionForPath('/admin/users')).toBe('admin:users');
     expect(actionForPath('/admin/datasources')).toBe('admin:datasources');
     expect(actionForPath('/admin/audit')).toBe('admin:audit');
+    expect(actionForPath('/admin/profiles-upload')).toBe('admin:upload');
+    expect(actionForPath('/admin/upload')).toBe('admin:upload');
+    expect(actionForPath('/admin/excia-import')).toBe('admin:upload');
+    expect(actionForPath('/admin/historical-rebase')).toBe('admin:upload');
+    expect(actionForPath('/admin/cutover')).toBe('admin:upload');
   });
   it('returns null for public/unknown paths', () => {
     expect(actionForPath('/login')).toBeNull();

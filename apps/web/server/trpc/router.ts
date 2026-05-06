@@ -6,6 +6,7 @@ import { marcaCidadeRouter } from './routers/marcaCidade';
 import { metaRouter } from './routers/meta';
 import { negocioRouter } from './routers/negocio';
 import { produtoRouter } from './routers/produto';
+import { profilesRouter } from './routers/profiles';
 
 export const appRouter = router({
   dataSources: dataSourcesRouter,
@@ -15,6 +16,7 @@ export const appRouter = router({
   produto: produtoRouter,
   mapa: mapaRouter,
   briefing: briefingRouter,
+  profiles: profilesRouter,
 });
 
 export type AppRouter = typeof appRouter;
