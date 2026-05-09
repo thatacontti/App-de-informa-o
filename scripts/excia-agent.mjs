@@ -132,13 +132,17 @@ async function main() {
   console.log();
 
   // 1. Pre-load dimensões
+  // Excia exige filtro de data — usa data muito antiga pra pegar tudo
+  // que existe hoje (snapshot completo da dimensão).
+  const SNAPSHOT_DATE = '01/01/2019';
+
   console.log('[step 1/3] preload produtos...');
-  const produtos = await paginate('/ProdutoLista');
+  const produtos = await paginate('/ProdutoLista', { alteracao: SNAPSHOT_DATE });
   const produtosByCodigo = new Map(produtos.map((p) => [String(p.codigo), p]));
   console.log(`           ${produtosByCodigo.size} produtos cacheados`);
 
   console.log('[step 2/3] preload clientes...');
-  const clientes = await paginate('/EntidadeLista');
+  const clientes = await paginate('/EntidadeLista', { alteracao: SNAPSHOT_DATE });
   const clientesByCodcli = new Map(clientes.map((c) => [String(c.codigo), c]));
   console.log(`           ${clientesByCodcli.size} clientes cacheados`);
 
