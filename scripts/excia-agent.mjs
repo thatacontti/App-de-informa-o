@@ -108,7 +108,8 @@ async function paginate(path, baseParams = {}) {
 const base44 = createClient({
   appId: BASE44_APP_ID,
   serverUrl: BASE44_SERVER_URL,
-  headers: { api_key: BASE44_API_KEY },
+  apiKey: BASE44_API_KEY,
+  requiresAuth: false,
 });
 
 async function upsertSale(externalId, data) {
