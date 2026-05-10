@@ -102,26 +102,53 @@ async function paginate(path, baseParams = {}) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// BASE44 (fetch direto — SDK rejeita auth mesmo com chave válida)
+// BASE44 (https nativo — Node fetch/undici quebra header `api_key`)
 // ═══════════════════════════════════════════════════════════════════
+
+import { request as httpsRequest } from 'node:https';
+import { URL as NodeURL } from 'node:url';
 
 const BASE44_API_ROOT = `${BASE44_SERVER_URL}/api/apps/${BASE44_APP_ID}/entities`;
 
-async function base44Fetch(method, path, body) {
-  const url = `${BASE44_API_ROOT}${path}`;
-  const res = await fetch(url, {
-    method,
-    headers: {
-      api_key: BASE44_API_KEY,
-      'content-type': 'application/json',
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    throw new Error(`Base44 ${res.status} ${method} ${path}: ${txt.slice(0, 300)}`);
+function base44Fetch(method, path, body) {
+  const url = new NodeURL(`${BASE44_API_ROOT}${path}`);
+  const payload = body ? JSON.stringify(body) : null;
+  const headers = {
+    api_key: BASE44_API_KEY,
+    accept: 'application/json',
+    'user-agent': 'excia-agent/1.0',
+  };
+  if (payload) {
+    headers['content-type'] = 'application/json';
+    headers['content-length'] = Buffer.byteLength(payload);
   }
-  return res.status === 204 ? null : res.json();
+  return new Promise((resolve, reject) => {
+    const req = httpsRequest(
+      {
+        method,
+        hostname: url.hostname,
+        port: url.port || 443,
+        path: url.pathname + url.search,
+        headers,
+      },
+      (res) => {
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => {
+          const txt = Buffer.concat(chunks).toString('utf8');
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(txt ? JSON.parse(txt) : null);
+          } else {
+            reject(new Error(`Base44 ${res.statusCode} ${method} ${path}: ${txt.slice(0, 300)}`));
+          }
+        });
+        res.on('error', reject);
+      },
+    );
+    req.on('error', reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
 }
 
 const base44 = {
@@ -136,6 +163,10 @@ const base44 = {
     },
   },
 };
+
+// Debug: confirmar key carregada (mascarada)
+const _km = BASE44_API_KEY || '';
+console.log(`[base44] api_key carregada: ${_km.slice(0, 6)}...${_km.slice(-4)} (len=${_km.length})`);
 
 // ═══════════════════════════════════════════════════════════════════
 // MAIN
