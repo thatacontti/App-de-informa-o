@@ -143,7 +143,7 @@ async function main() {
 
   console.log('[step 2/3] preload clientes...');
   const clientes = await paginate('/EntidadeLista', { data: SNAPSHOT_DATE });
-  const clientesByCodcli = new Map(clientes.map((c) => [String(c.codigo), c]));
+  const clientesByCodcli = new Map(clientes.map((c) => [String(c.codcli), c]));
   console.log(`           ${clientesByCodcli.size} clientes cacheados`);
 
   // 2. Pedidos
