@@ -143,7 +143,7 @@ async function main() {
 
   console.log('[step 2/3] preload clientes...');
   const clientes = await paginate('/EntidadeLista', { data: SNAPSHOT_DATE });
-  const clientesByCodcli = new Map(clientes.map((c) => [String(c.codigo), c]));
+  const clientesByCodcli = new Map(clientes.map((c) => [String(c.codcli), c]));
   console.log(`           ${clientesByCodcli.size} clientes cacheados`);
 
   // 2. Pedidos
@@ -166,7 +166,8 @@ async function main() {
     }
 
     try {
-      const detail = await exciaGet('/BuscarPedido', { numero: ped.numero });
+      const raw = await exciaGet('/BuscarPedido', { numero: ped.numero });
+      const detail = (Array.isArray(raw) ? raw[0] : raw) || {};
       const cli = clientesByCodcli.get(String(ped.codcli)) || {};
       for (const item of detail.itens || []) {
         const prod = produtosByCodigo.get(String(item.codigo)) || {};
