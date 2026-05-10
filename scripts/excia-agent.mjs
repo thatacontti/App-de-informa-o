@@ -166,7 +166,8 @@ async function main() {
     }
 
     try {
-      const detail = await exciaGet('/BuscarPedido', { numero: ped.numero });
+      const raw = await exciaGet('/BuscarPedido', { numero: ped.numero });
+      const detail = (Array.isArray(raw) ? raw[0] : raw) || {};
       const cli = clientesByCodcli.get(String(ped.codcli)) || {};
       for (const item of detail.itens || []) {
         const prod = produtosByCodigo.get(String(item.codigo)) || {};
