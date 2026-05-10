@@ -13,7 +13,7 @@
 // Pra rodar todo dia: agendar no Task Scheduler do Windows
 // (acao: node excia-agent.mjs ; horário: 02:00 diário)
 
-import { createClient } from '@base44/sdk';
+// SDK do Base44 não é mais necessário — usamos fetch direto.
 
 // ═══════════════════════════════════════════════════════════════════
 // CONFIG
@@ -102,23 +102,40 @@ async function paginate(path, baseParams = {}) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// BASE44
+// BASE44 (fetch direto — SDK rejeita auth mesmo com chave válida)
 // ═══════════════════════════════════════════════════════════════════
 
-const base44 = createClient({
-  appId: BASE44_APP_ID,
-  serverUrl: BASE44_SERVER_URL,
-  apiKey: BASE44_API_KEY,
-  requiresAuth: false,
-});
+const BASE44_API_ROOT = `${BASE44_SERVER_URL}/api/apps/${BASE44_APP_ID}/entities`;
 
-async function upsertSale(externalId, data) {
-  const existing = await base44.entities.Sale.filter({ externalId });
-  if (existing && existing.length > 0) {
-    return base44.entities.Sale.update(existing[0].id, data);
+async function base44Fetch(method, path, body) {
+  const url = `${BASE44_API_ROOT}${path}`;
+  const res = await fetch(url, {
+    method,
+    headers: {
+      api_key: BASE44_API_KEY,
+      'content-type': 'application/json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`Base44 ${res.status} ${method} ${path}: ${txt.slice(0, 300)}`);
   }
-  return base44.entities.Sale.create({ externalId, ...data });
+  return res.status === 204 ? null : res.json();
 }
+
+const base44 = {
+  entities: {
+    Sale: {
+      filter: (q) => {
+        const qs = new URLSearchParams(q).toString();
+        return base44Fetch('GET', `/Sale?${qs}&limit=2`);
+      },
+      create: (data) => base44Fetch('POST', `/Sale`, data),
+      update: (id, data) => base44Fetch('PUT', `/Sale/${id}`, data),
+    },
+  },
+};
 
 // ═══════════════════════════════════════════════════════════════════
 // MAIN
