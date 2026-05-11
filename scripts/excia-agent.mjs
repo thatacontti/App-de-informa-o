@@ -122,7 +122,22 @@ import { URL as NodeURL } from 'node:url';
 
 const BASE44_API_ROOT = `${BASE44_SERVER_URL}/api/apps/${BASE44_APP_ID}/entities`;
 
-function base44Fetch(method, path, body) {
+// Throttle: garante intervalo mínimo entre chamadas (evita 429 preventivamente)
+const BASE44_MIN_INTERVAL_MS = 150;
+let base44LastCall = 0;
+async function base44Throttle() {
+  const now = Date.now();
+  const wait = base44LastCall + BASE44_MIN_INTERVAL_MS - now;
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  base44LastCall = Date.now();
+}
+
+async function base44Fetch(method, path, body) {
+  await base44Throttle();
+  return base44FetchOnce(method, path, body, 0);
+}
+
+function base44FetchOnce(method, path, body, attempt) {
   const url = new NodeURL(`${BASE44_API_ROOT}${path}`);
   const payload = body ? JSON.stringify(body) : null;
   const headers = {
@@ -146,13 +161,28 @@ function base44Fetch(method, path, body) {
       (res) => {
         const chunks = [];
         res.on('data', (c) => chunks.push(c));
-        res.on('end', () => {
+        res.on('end', async () => {
           const txt = Buffer.concat(chunks).toString('utf8');
           if (res.statusCode >= 200 && res.statusCode < 300) {
             resolve(txt ? JSON.parse(txt) : null);
-          } else {
-            reject(new Error(`Base44 ${res.statusCode} ${method} ${path}: ${txt.slice(0, 300)}`));
+            return;
           }
+          // Rate limit: respeita Retry-After, com fallback exponencial (2s, 4s, 8s, 16s, 32s)
+          if (res.statusCode === 429 && attempt < 5) {
+            const retryAfter = parseInt(res.headers['retry-after'] || '', 10);
+            const waitMs = Number.isFinite(retryAfter) && retryAfter > 0
+              ? retryAfter * 1000
+              : Math.min(2000 * Math.pow(2, attempt), 32000);
+            console.log(`[base44] 429 rate limit · aguardando ${waitMs}ms (tentativa ${attempt + 1}/5)...`);
+            await new Promise((r) => setTimeout(r, waitMs));
+            try {
+              resolve(await base44FetchOnce(method, path, body, attempt + 1));
+            } catch (e) {
+              reject(e);
+            }
+            return;
+          }
+          reject(new Error(`Base44 ${res.statusCode} ${method} ${path}: ${txt.slice(0, 300)}`));
         });
         res.on('error', reject);
       },
