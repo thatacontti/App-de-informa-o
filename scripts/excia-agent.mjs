@@ -13,6 +13,8 @@
 // Pra rodar todo dia: agendar no Task Scheduler do Windows
 // (acao: node excia-agent.mjs ; horário: 02:00 diário)
 
+import { mapCategoriaToGrupo } from './categoria-to-grupo.mjs';
+
 // SDK do Base44 não é mais necessário — usamos fetch direto.
 
 // ═══════════════════════════════════════════════════════════════════
@@ -270,7 +272,7 @@ async function main() {
           dp: prod.descricao || '',
           m: prod.marca || '',
           l: prod.linha || '',
-          g: prod.grupo || '',
+          g: mapCategoriaToGrupo(prod.grupo) || '',
           co: prod.coordenado || '',
           uf: cli.uf || '',
           cid: cli.cidade || '',
