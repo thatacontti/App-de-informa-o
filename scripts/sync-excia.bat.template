@@ -1,0 +1,45 @@
+@echo off
+REM ─────────────────────────────────────────────────────────────────────
+REM  Sync Excia → Base44 (automatizada via Task Scheduler do Windows)
+REM
+REM  Como configurar:
+REM    1. Copie esse arquivo pra:  C:\Users\<usuario>\Desktop\ExciaAgent\sync-excia.bat
+REM    2. Edite as 5 linhas "set ..." abaixo com as credenciais reais
+REM    3. No Task Scheduler, agenda esse .bat pra rodar 1x por dia
+REM       (recomendado: 02:00 da madrugada, fora do expediente)
+REM
+REM  O script:
+REM    - Olha pra trás 3 dias (--since X dias atrás) pra cobrir falhas
+REM      eventuais; o agent faz upsert por externalId então re-processar
+REM      o mesmo pedido é seguro
+REM    - Grava log em logs\sync-AAAA-MM-DD.log na mesma pasta
+REM
+REM  Pra rodar manualmente (debug):  click duplo no .bat
+REM ─────────────────────────────────────────────────────────────────────
+
+cd /d "%~dp0"
+
+REM Credenciais — substitua os <VALOR> pelos reais
+set EXCIA_BASE=http://192.168.1.6:211
+set EXCIA_TOKEN=<EXCIA_TOKEN>
+set BASE44_APP_ID=69f3d2ea55300f3afb7e35dc
+set BASE44_API_KEY=<BASE44_API_KEY>
+set BASE44_SERVER_URL=https://catarina-vibe-flow.base44.app
+
+REM Calcula "3 dias atrás" no formato dd/MM/yyyy via PowerShell
+for /f %%i in ('powershell -NoProfile -Command "(Get-Date).AddDays(-3).ToString('dd/MM/yyyy')"') do set SINCE=%%i
+
+REM Nome do log do dia
+for /f %%i in ('powershell -NoProfile -Command "(Get-Date).ToString('yyyy-MM-dd_HH-mm')"') do set STAMP=%%i
+
+if not exist logs mkdir logs
+
+echo. >> "logs\sync-%STAMP%.log"
+echo === %STAMP% · since=%SINCE% === >> "logs\sync-%STAMP%.log"
+
+node excia-agent.mjs --since %SINCE% >> "logs\sync-%STAMP%.log" 2>&1
+
+REM Mantém os últimos 30 logs e apaga os mais velhos
+powershell -NoProfile -Command "Get-ChildItem 'logs\sync-*.log' | Sort-Object LastWriteTime -Descending | Select-Object -Skip 30 | Remove-Item -Force" 2>nul
+
+exit /b 0
