@@ -5,27 +5,27 @@
 // Esta tabela colapsa pro grupo canônico — usado pelo `excia-agent.mjs`
 // (sync futura) e pelo `migrate-grupo-base44.mjs` (registros legados).
 //
-// SUSPEITOS DE TYPO — REVISAR antes de aplicar em produção:
-//   • "BLUSA INF. FEM."  →  "BLISA"             (provável: "BLUSA")
-//   • 3× "...SHORTS SAIA INF. FEM." → "BLUSA/SHORTSAIA"
-//                                     (provável: "BLUSA/SHORTS SAIA")
-//   • "CONJ. BLUSA/SAIA FEM."  →  "BLUSA"      (outros similares mapeiam
-//                                                pra "BLUSA/SAIA")
-//   • "CONJ. BLUSA/SHORTS FEM."  →  "BLUSA"    (outros mapeiam pra
-//                                                "BLUSA/SHORTS")
-//   • "CONJ. BLUSA/SHORTS SAIA"  →  "BLUSA"   (similar)
-//   • "CONJ. BLUSA/TOP/SAIA FEM."  →  "BLUSA"  (similar)
-//   • "BOLSA SACO INF. FEM."  →  "ACESSORIOS" mas "BOLSA SACO"  →  "BOLSA"
-//   • "CONJ. COLETE/BLUSA/BERMUDA INF. FEM."  →  "BODY/SHORTS SAIA"
-//   • "CONJ. COLETE/BLUSA/SAIA INF. FEM."  →  "BODY/SHORTS SAIA"
-//   • "CONJ. COLETE/BLUSA/SHORTS INF. FEM."  →  "BODY/SHORTS SAIA"
-//   • "CONJ. CROPPED/SHORTS FEM."  →  "BLUSA/SAIA" (provável: "BLUSA/SHORTS")
-//   • "CONJ. TOP/SAIA INF. FEM."  →  "BLUSA" (similar mapeia "BLUSA/SAIA")
-//   • "KIMONO FEM. 12 AO 16"  →  "JAQUETA"
-//   • "PANTACOURT FEM."  →  "CALCA"
-//   • "VESTIDO/BLUSA"  →  "SALOPETE/BLUSA"
-//   • "VESTIDO/BLUSA CROPPED"  →  "SALOPETE/BLUSA"
-//   • "VESTIDO/TOP/SHORTS"  →  "VESTIDO/CALCINHA"
+// CORREÇÕES APLICADAS EM 12/05/2026 (typos óbvios — só estes):
+//   ✓ "BLUSA INF. FEM."  →  "BLISA" corrigido pra "BLUSA"
+//   ✓ "BLUSA/SHORTSAIA" (3 entradas) corrigido pra "BLUSA/SHORTS SAIA"
+//
+// DUVIDOSOS NÃO TOCADOS (mantidos exatos como vieram — operação revisa
+// caso a caso pela UI /admin/category-mapping se quiser alterar):
+//   ? "CONJ. BLUSA/SAIA FEM."  →  "BLUSA"      (outros similares: "BLUSA/SAIA")
+//   ? "CONJ. BLUSA/SHORTS FEM."  →  "BLUSA"    (outros: "BLUSA/SHORTS")
+//   ? "CONJ. BLUSA/SHORTS SAIA"  →  "BLUSA"
+//   ? "CONJ. BLUSA/TOP/SAIA FEM."  →  "BLUSA"
+//   ? "BOLSA SACO INF. FEM."  →  "ACESSORIOS" mas "BOLSA SACO"  →  "BOLSA"
+//   ? "CONJ. COLETE/BLUSA/BERMUDA INF. FEM."  →  "BODY/SHORTS SAIA"
+//   ? "CONJ. COLETE/BLUSA/SAIA INF. FEM."  →  "BODY/SHORTS SAIA"
+//   ? "CONJ. COLETE/BLUSA/SHORTS INF. FEM."  →  "BODY/SHORTS SAIA"
+//   ? "CONJ. CROPPED/SHORTS FEM."  →  "BLUSA/SAIA"
+//   ? "CONJ. TOP/SAIA INF. FEM."  →  "BLUSA"
+//   ? "KIMONO FEM. 12 AO 16"  →  "JAQUETA"
+//   ? "PANTACOURT FEM."  →  "CALCA"
+//   ? "VESTIDO/BLUSA"  →  "SALOPETE/BLUSA"
+//   ? "VESTIDO/BLUSA CROPPED"  →  "SALOPETE/BLUSA"
+//   ? "VESTIDO/TOP/SHORTS"  →  "VESTIDO/CALCINHA"
 //
 // Lookup é case-insensitive e normaliza espaços em branco (\s+ → ' '),
 // então variações tipo "BLUSA  INF.  FEM." resolvem pra "BLUSA INF. FEM."
@@ -133,7 +133,7 @@ export const CATEGORIA_TO_GRUPO_RAW = {
   'CONJ. TOP/SAIA INF. FEM.': 'BLUSA',
   'CONJ.BLUSA/SAIA INF. FEM.': 'BLUSA/SAIA',
   'CONJ.BLUSA/SHORTS INF. FEM.': 'BLUSA/SHORTS',
-  'CONJ.BLUSA/SHORTS SAIA INF. FEM.': 'BLUSA/SHORTSAIA',
+  'CONJ.BLUSA/SHORTS SAIA INF. FEM.': 'BLUSA/SHORTS SAIA',
   'CROPPED FEM.': 'BLUSA',
   'CROPPED FEM. 12 AO 16': 'BLUSA',
   'CROPPED/BLUSA INF. FEM.': 'BLUSA',
@@ -416,7 +416,7 @@ export const CATEGORIA_TO_GRUPO_RAW = {
   // ─── Adicionais (fim da lista enviada) ────────────────────────────
   'BANHO DE SOL INF. FEM.': 'BANHO DE SOL',
   'BLUSA FEM.': 'BLUSA',
-  'BLUSA INF. FEM.': 'BLISA',
+  'BLUSA INF. FEM.': 'BLUSA',
   'BODY INF. FEM.': 'BODY',
   'CONJ BLUSA/SAIA': 'BLUSA/SAIA',
   'CONJ. BATA/CALCINHA': 'BATA/CALCINHA',
