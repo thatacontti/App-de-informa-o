@@ -1,0 +1,27 @@
+# O Caddy emite e renova o certificado HTTPS sozinho para o domínio configurado no .env
+{$DOMINIO} {
+	encode gzip
+
+	# Gestor do banco de dados (Adminer), protegido pela senha do portal
+	handle_path /adminer* {
+		basic_auth {
+			admin {$SENHA_PORTAL_HASH}
+		}
+		reverse_proxy adminer:8080
+	}
+
+	# FASE 6 DO ROTEIRO: quando o backend existir, descomente
+	# handle /api/* {
+	# 	reverse_proxy api:3000
+	# }
+
+	# Portal (o sistema)
+	handle {
+		basic_auth {
+			admin {$SENHA_PORTAL_HASH}
+		}
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
