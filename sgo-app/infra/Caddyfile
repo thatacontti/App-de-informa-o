@@ -1,5 +1,7 @@
-# O Caddy emite e renova o certificado HTTPS sozinho para o domínio configurado no .env
-{$DOMINIO} {
+# ADAPTADO para o VPS grupocatarina-vps: o portal serve em HTTP interno
+# (porta 80 do container). O HTTPS e o dominio budget.grupocatarina.com
+# sao tratados pelo Nginx Proxy Manager, que encaminha para sgo-portal:80.
+:80 {
 	encode gzip
 
 	# Gestor do banco de dados (Adminer), protegido pela senha do portal

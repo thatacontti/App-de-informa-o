@@ -1,5 +1,10 @@
-# Sistema de Gestão Orçamentária - infraestrutura de produção (Hostinger VPS)
-# Sobe: portal (frontend + HTTPS + senha), banco PostgreSQL e Adminer (gestor do banco)
+# Sistema de Gestao Orcamentaria - infraestrutura de producao
+# ADAPTADO para o VPS grupocatarina-vps, onde ja existe um Nginx Proxy
+# Manager cuidando das portas 80/443 e do HTTPS. Aqui o portal NAO pega
+# portas publicas nem emite certificado: serve em HTTP interno e o Nginx
+# Proxy Manager publica em https://budget.grupocatarina.com.
+#
+# Sobe: portal (frontend), banco PostgreSQL (interno) e Adminer.
 
 services:
 
@@ -16,40 +21,39 @@ services:
       # Aplica o modelo de dados automaticamente na primeira subida
       - ./docs/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./backups:/backups
-    ports:
-      # Acessível apenas de dentro do próprio servidor (não exposto à internet)
-      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    # Sem "ports": o banco fica acessivel apenas dentro do Docker (portal,
+    # adminer e o futuro backend). Nao concorre com o PostgreSQL que ja
+    # existe no servidor na porta 5432.
 
   portal:
     build: .
     container_name: sgo-portal
     restart: unless-stopped
     environment:
-      DOMINIO: ${DOMINIO}
       SENHA_PORTAL_HASH: ${SENHA_PORTAL_HASH}
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - caddy_dados:/data
-      - caddy_config:/config
     depends_on:
       banco:
         condition: service_healthy
+    networks:
+      - default    # fala com banco e adminer
+      - externa    # o Nginx Proxy Manager alcanca o portal por aqui
+    # Sem "ports": quem publica na internet (80/443 + HTTPS) e o Nginx
+    # Proxy Manager, encaminhando para sgo-portal:80.
 
   adminer:
-    # Interface web para consultar e administrar o banco de dados.
-    # Sem porta pública: o acesso é somente pelo portal, em /adminer, com a mesma senha.
+    # Interface web do banco. Acesso somente pelo portal, em /adminer.
     image: adminer:latest
     container_name: sgo-adminer
     restart: unless-stopped
     environment:
       ADMINER_DEFAULT_SERVER: banco
+    networks:
+      - default
 
   # FASE 6 DO ROTEIRO: quando o backend existir, descomente este bloco
   # api:
@@ -62,8 +66,15 @@ services:
   #   depends_on:
   #     banco:
   #       condition: service_healthy
+  #   networks:
+  #     - default
 
 volumes:
   dados_banco:
-  caddy_dados:
-  caddy_config:
+
+networks:
+  # Rede ja existente do Nginx Proxy Manager (projeto grupocatarina-vps).
+  # O nome real e preenchido em REDE_EXTERNA no .env, detectado na implantacao.
+  externa:
+    external: true
+    name: ${REDE_EXTERNA}
