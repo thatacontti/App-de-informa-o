@@ -1989,6 +1989,7 @@ export default function App() {
   const [salvo, setSalvo] = useState(true);
   const [conf, setConf] = useState(null);
   const carregouRef = useRef(false);
+  const backupRef = useRef(null);
 
   useEffect(() => {
     (async () => {
@@ -2036,7 +2037,6 @@ export default function App() {
     ok: () => setDb((d) => ({ ...d, orcamento: [], lancamentos: [], lotes: [] })),
   });
   const limparTudo = () => setConf({ msg: "Apagar todos os dados e começar do zero? Esta ação não pode ser desfeita.", ok: () => setDb(dbVazio()) });
-  const backupRef = useRef(null);
   const exportarBackup = () => {
     const blob = new Blob([JSON.stringify(db, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
