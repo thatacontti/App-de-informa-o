@@ -17,20 +17,37 @@ distância assim que o subdomínio existir.
 | `manuais/` | PDFs de políticas/manuais (montados em `/manuais` no app) — coloque os arquivos aqui |
 | `certbot-www/` | Webroot do desafio ACME (criado pelo deploy.sh) |
 
-## 1. Subir agora (antes do domínio)
+## 1. Subir agora (antes do domínio) — VPS Hostinger, do zero
 
-Pré-requisitos no VPS: Ubuntu 22.04+, Docker + Docker Compose.
+Passo a passo para quem não é técnico. Só precisa **colar 2 comandos** no
+terminal do navegador da Hostinger.
+
+**a) Abrir o terminal da VPS (sem instalar nada):**
+hPanel (hpanel.hostinger.com) → **VPS** → seu servidor → **Browser terminal**
+(ou "Terminal do navegador"). Abre uma tela preta onde você digita/cola.
+
+**b) Colocar o código do projeto na VPS** (só uma vez). Cole:
 
 ```bash
-git clone <repo> && cd <repo>/deploy/representantes
-# ajuste os segredos do app:
-cp ../../apps/representantes/.env.example ../../apps/representantes/.env
-nano ../../apps/representantes/.env      # JWT_SECRET, EXCIA_*, SMTP_*
-./deploy.sh
+cd /opt && git clone -b claude/grupo-catarina-domain-setup-hfu1vy \
+  https://github.com/thatacontti/App-de-informa-o.git gc && cd gc
+```
+> Se o repositório for privado, o git vai pedir usuário e um **token** do
+> GitHub (não a senha da conta). O Anderson gera esse token em segundos, ou
+> use um "deploy key". Alternativa: baixar o .zip do branch pelo GitHub e subir.
+
+**c) Rodar o provisionamento completo** (instala Docker, gera segredos e sobe
+tudo — leva alguns minutos). Cole:
+
+```bash
+sudo bash deploy/representantes/provision-vps.sh
 ```
 
-O app já responde em **HTTP** na porta 80. Como o DNS ainda não aponta,
-teste pelo IP do VPS: `http://SEU_IP/` (a plataforma) e `http://SEU_IP/healthz`.
+Ao terminar, o próprio script mostra o link. O app já responde em **HTTP**:
+teste no navegador `http://SEU_IP/` (a plataforma) e `http://SEU_IP/healthz`.
+
+> Para re-deploys depois (nova versão do código), use `./deploy.sh` — o
+> `provision-vps.sh` é só o primeiro setup do zero.
 
 > O banco SQLite e as fotos ficam em volumes Docker (`gcrep-db`, `gcrep-uploads`),
 > então sobrevivem a `up`/`down`/`rebuild`. O seed roda sozinho no primeiro boot.
