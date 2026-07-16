@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel do Projeto · Plataforma do Representante · Grupo Catarina</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,800;1,9..144,400;1,9..144,800&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--t1:#1a0f0a;--t2:#4a3a2f;--t3:#8a7f74;--cream:#faf5ed;--paper:#fefbf5;--beige:#f5ecd9;--amber:#d4a574;--burnt:#c9885f;--terra:#8b4a3a;--deep:#4a2318;--sage:#6b8a5f;--rust:#b54a2a;--gold:#c9a855}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--cream);color:var(--t1);line-height:1.55;font-size:14px;-webkit-font-smoothing:antialiased}
+body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(circle at 20% 30%,rgba(212,165,116,.08),transparent 60%),radial-gradient(circle at 80% 70%,rgba(139,74,58,.06),transparent 60%);pointer-events:none;z-index:0}
+.z{position:relative;z-index:1}
+.mono{font-family:'JetBrains Mono',monospace}
+
+.hero{background:linear-gradient(135deg,#3a1f15 0%,#5a2e22 35%,#8b4a3a 75%,#c9885f 100%);color:var(--paper);padding:46px 48px 52px;position:relative;overflow:hidden}
+.hero::after{content:'';position:absolute;top:-50%;right:-10%;width:520px;height:520px;background:radial-gradient(circle,rgba(212,165,116,.3),transparent 70%);pointer-events:none}
+.hero .tag{display:inline-block;background:rgba(212,165,116,.2);color:var(--amber);padding:6px 16px;border-radius:2px;font-size:.64rem;letter-spacing:3px;margin-bottom:12px;text-transform:uppercase;font-weight:600;border:1px solid rgba(212,165,116,.3)}
+.hero h1{font-family:'Fraunces',serif;font-size:2.7rem;font-weight:300;letter-spacing:-1.2px;line-height:1.05}
+.hero h1 b{font-weight:800;font-style:italic;color:var(--amber)}
+.hero p{opacity:.88;max-width:760px;font-size:.92rem;margin-top:10px;font-weight:300}
+.hero .meta{margin-top:16px;font-family:'JetBrains Mono',monospace;font-size:.64rem;letter-spacing:2px;opacity:.75;text-transform:uppercase}
+
+.tabs{background:var(--paper);padding:0 44px;border-bottom:1px solid rgba(139,74,58,.15);display:flex;position:sticky;top:0;z-index:30;overflow-x:auto;box-shadow:0 1px 0 rgba(139,74,58,.05)}
+.tab{padding:17px 22px;font-weight:500;color:var(--t3);border:0;border-bottom:2px solid transparent;background:none;font-size:.83rem;cursor:pointer;font-family:inherit;white-space:nowrap;position:relative;transition:.2s}
+.tab:hover{color:var(--terra)}
+.tab.act{color:var(--deep);border-bottom-color:var(--terra);font-weight:700}
+.tab.act::after{content:'';position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);width:6px;height:6px;background:var(--amber);border-radius:50%}
+.wrap{max-width:1360px;margin:0 auto;padding:30px 36px 100px}
+.view{display:none}.view.act{display:block}
+
+h2.sec{font-family:'Fraunces',serif;font-weight:600;font-size:1.4rem;letter-spacing:-.4px;margin:28px 0 14px;color:var(--deep)}
+h2.sec span{font-family:'JetBrains Mono',monospace;font-size:.62rem;letter-spacing:2px;color:var(--terra);display:block;margin-bottom:4px;font-weight:700}
+.panel{background:var(--paper);border:1px solid rgba(212,165,116,.22);border-radius:14px;padding:22px 26px;box-shadow:0 8px 26px -10px rgba(139,74,58,.13);margin-bottom:16px}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.trio{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+@media(max-width:960px){.duo{grid-template-columns:1fr}}
+p.lead{font-size:.9rem;color:var(--t2);max-width:860px}
+table.tb{width:100%;border-collapse:collapse;font-size:.82rem}
+table.tb th{font-family:'JetBrains Mono',monospace;font-size:.6rem;letter-spacing:1.4px;text-transform:uppercase;color:var(--t3);text-align:left;padding:9px 10px;border-bottom:2px solid var(--beige)}
+table.tb td{padding:10px;border-bottom:1px solid rgba(139,74,58,.08);vertical-align:top}
+.badge{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:.64rem;font-weight:700;padding:3px 10px;border-radius:20px}
+.badge.ok{background:rgba(107,138,95,.15);color:var(--sage)}
+.badge.pend{background:rgba(201,168,85,.18);color:#8a6516}
+.badge.dec{background:rgba(181,74,42,.13);color:var(--rust)}
+.badge.info{background:var(--beige);color:var(--t2)}
+
+/* ecossistema */
+.eco{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:8px}
+.node{background:var(--paper);border:1.5px solid var(--terra);border-radius:12px;padding:16px 16px 14px;position:relative}
+.node .k{font-family:'JetBrains Mono',monospace;font-size:.56rem;letter-spacing:2px;color:var(--terra);text-transform:uppercase;font-weight:700}
+.node h4{font-family:'Fraunces',serif;font-size:1rem;color:var(--deep);margin:4px 0 4px}
+.node p{font-size:.74rem;color:var(--t3)}
+.flowline{font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--t3);text-align:center;letter-spacing:1px;margin:8px 0}
+
+/* ===== aprovação de layout ===== */
+.spec{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.chip{border-radius:12px;padding:16px 14px;color:#fff;position:relative;min-height:92px}
+.chip .h{font-family:'JetBrains Mono',monospace;font-size:.6rem;letter-spacing:1.5px;opacity:.9;text-transform:uppercase}
+.chip .c{font-family:'JetBrains Mono',monospace;font-size:.78rem;font-weight:700;margin-top:26px}
+.typo{background:var(--paper);border:1px solid rgba(139,74,58,.15);border-radius:12px;padding:18px}
+.typo .fr{font-family:'Fraunces',serif;font-size:1.6rem;font-weight:800;font-style:italic;color:var(--deep);letter-spacing:-.5px}
+.typo .px{font-size:.9rem;color:var(--t2);margin-top:4px}
+.typo .jb{font-family:'JetBrains Mono',monospace;font-size:.74rem;color:var(--terra);margin-top:6px}
+.typo .l{font-family:'JetBrains Mono',monospace;font-size:.56rem;letter-spacing:2px;color:var(--t3);text-transform:uppercase;margin-bottom:8px}
+
+/* miniaturas de telas */
+.shots{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+.shot{background:var(--paper);border:1px solid rgba(139,74,58,.18);border-radius:14px;overflow:hidden;box-shadow:0 10px 30px -14px rgba(139,74,58,.2)}
+.shot .scr{height:170px;position:relative;background:var(--cream);overflow:hidden}
+.shot .cap{padding:12px 16px}
+.shot .cap h5{font-family:'Fraunces',serif;font-size:.95rem;color:var(--deep)}
+.shot .cap p{font-size:.7rem;color:var(--t3);margin-top:2px}
+.aprv{display:flex;gap:8px;padding:0 16px 14px}
+.aprv button{flex:1;border-radius:8px;border:1.5px solid var(--terra);background:none;color:var(--terra);font-size:.68rem;font-weight:700;padding:7px;font-family:inherit;cursor:pointer;letter-spacing:.4px}
+.aprv button.on{background:var(--sage);border-color:var(--sage);color:#fff}
+.aprv button.aj.on{background:var(--gold);border-color:var(--gold);color:var(--deep)}
+/* wireframes em CSS */
+.wf-hero{position:absolute;inset:0 0 auto 0;height:52px;background:linear-gradient(135deg,#3a1f15,#8b4a3a 70%,#c9885f)}
+.wf-hero i{position:absolute;left:12px;top:16px;width:110px;height:8px;background:rgba(250,245,237,.85);border-radius:3px}
+.wf-hero i.b{top:30px;width:70px;height:5px;opacity:.5}
+.wf-tabs{position:absolute;top:52px;left:0;right:0;height:18px;background:var(--paper);border-bottom:1px solid rgba(139,74,58,.2);display:flex;gap:10px;padding:0 12px;align-items:center}
+.wf-tabs i{width:34px;height:4px;background:var(--beige);border-radius:2px}
+.wf-tabs i:first-child{background:var(--terra)}
+.wf-k{position:absolute;top:80px;left:12px;right:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.wf-k i{height:32px;background:var(--paper);border:1px solid rgba(139,74,58,.18);border-radius:6px}
+.wf-bars{position:absolute;top:122px;left:12px;width:46%;height:36px;background:var(--paper);border:1px solid rgba(139,74,58,.18);border-radius:6px;padding:6px}
+.wf-bars i{display:block;height:5px;border-radius:2px;margin-bottom:4px}
+.wf-tab2{position:absolute;top:122px;right:12px;width:46%;height:36px;background:var(--paper);border:1px solid rgba(139,74,58,.18);border-radius:6px;padding:6px}
+.wf-tab2 i{display:block;height:4px;background:var(--beige);border-radius:2px;margin-bottom:4px}
+.wf-form{position:absolute;top:60px;left:30px;right:30px;bottom:8px;background:var(--paper);border:1px solid rgba(139,74,58,.2);border-radius:10px 10px 0 0;padding:10px}
+.wf-form i{display:block;height:7px;background:var(--cream);border:1px solid rgba(139,74,58,.15);border-radius:3px;margin-bottom:6px}
+.wf-form i.t{width:40%;background:var(--beige);border:none;height:5px}
+.wf-form i.btn{width:34%;background:var(--deep);border:none;height:10px;margin-top:8px}
+.wf-rx{position:absolute;top:58px;left:24px;right:24px;bottom:0;background:var(--paper);border:1.5px solid var(--deep);border-radius:10px 10px 0 0}
+.wf-rx .h{height:24px;background:var(--beige);border-bottom:1.5px solid var(--deep);position:relative}
+.wf-rx .h i{position:absolute;left:8px;top:8px;width:80px;height:7px;background:var(--deep);border-radius:2px}
+.wf-rx .h em{position:absolute;right:8px;top:6px;width:44px;height:12px;background:var(--gold);border-radius:2px;transform:rotate(-2deg)}
+.wf-rx .a{margin:8px;height:26px;background:var(--cream);border:1px solid rgba(139,74,58,.2);border-radius:6px;position:relative}
+.wf-rx .a i{position:absolute;left:6px;top:6px;width:50%;height:5px;background:var(--t3);opacity:.4;border-radius:2px}
+.wf-rx .a em{position:absolute;left:6px;top:15px;width:70%;height:4px;background:var(--terra);opacity:.35;border-radius:2px}
+.wf-login{position:absolute;inset:0;background:linear-gradient(135deg,#3a1f15,#8b4a3a 70%,#c9885f)}
+.wf-login .c{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:56%;height:70%;background:var(--paper);border-radius:10px;padding:12px}
+.wf-login .c i{display:block;height:6px;background:var(--cream);border:1px solid rgba(139,74,58,.15);border-radius:3px;margin-bottom:7px}
+.wf-login .c i.t{width:60%;background:var(--beige);border:none}
+.wf-login .c i.btn{background:var(--deep);border:none;height:11px;margin-top:10px}
+.wf-hub{position:absolute;inset:12px;display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:1fr;gap:8px;padding-top:34px}
+.wf-hub::before{content:'';position:absolute;top:0;left:0;right:0;height:26px;background:linear-gradient(135deg,#3a1f15,#c9885f);border-radius:8px}
+.wf-hub i{background:var(--paper);border:1px solid rgba(139,74,58,.2);border-radius:8px}
+
+/* excia pipeline */
+.pipe{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.pipe .st{background:var(--beige);border-radius:10px;padding:14px;position:relative}
+.pipe .st b{font-size:.8rem;color:var(--deep);display:block}
+.pipe .st span{font-size:.7rem;color:var(--t3)}
+.pipe .st .n{font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--terra);letter-spacing:1.5px;font-weight:700}
+code,.code{font-family:'JetBrains Mono',monospace;font-size:.74rem;background:var(--beige);padding:2px 6px;border-radius:4px;color:var(--deep)}
+.gate{border-left:4px solid var(--rust);background:rgba(181,74,42,.06);padding:12px 16px;border-radius:0 10px 10px 0;font-size:.82rem;margin-top:10px}
+.gate b{color:var(--rust)}
+
+/* cronograma */
+.gantt{display:grid;grid-template-columns:210px repeat(4,1fr);gap:4px;font-size:.72rem;align-items:center}
+.gantt .h{font-family:'JetBrains Mono',monospace;font-size:.58rem;letter-spacing:1.4px;color:var(--t3);text-transform:uppercase;text-align:center;padding:6px 0}
+.gantt .r{font-weight:600;color:var(--t2);padding:6px 8px 6px 0}
+.gantt .b{height:20px;border-radius:5px}
+.gantt .b.on{background:var(--terra)}
+.gantt .b.on2{background:var(--amber)}
+.gantt .b.off{background:transparent}
+
+/* checklist interativa */
+.check{list-style:none}
+.check li{display:grid;grid-template-columns:26px 1fr auto;gap:12px;align-items:start;padding:11px 0;border-bottom:1px dashed rgba(139,74,58,.14);cursor:pointer}
+.check li:last-child{border:none}
+.cbx{width:18px;height:18px;border:2px solid var(--terra);border-radius:5px;margin-top:2px;position:relative}
+li.done .cbx{background:var(--sage);border-color:var(--sage)}
+li.done .cbx::after{content:'✓';color:#fff;position:absolute;left:2px;top:-3px;font-size:13px;font-weight:700}
+.check b{font-size:.85rem}
+li.done b{text-decoration:line-through;color:var(--t3)}
+.check small{display:block;color:var(--t3);font-size:.72rem}
+.who{font-family:'JetBrains Mono',monospace;font-size:.6rem;letter-spacing:1px;color:var(--terra);text-transform:uppercase;white-space:nowrap;padding-top:4px}
+
+.prog{background:var(--paper);border:1px solid rgba(212,165,116,.25);border-radius:14px;padding:16px 22px;display:flex;align-items:center;gap:18px;margin-bottom:16px}
+.prog .bar{flex:1;height:10px;background:var(--beige);border-radius:6px;overflow:hidden}
+.prog .fill{height:100%;background:linear-gradient(90deg,var(--terra),var(--amber));width:0%;transition:.4s}
+.prog .n{font-family:'Fraunces',serif;font-weight:800;font-size:1.3rem;color:var(--deep);min-width:60px;text-align:right}
+
+footer{background:var(--paper);border-top:1px solid rgba(139,74,58,.12);padding:20px 44px;font-family:'JetBrains Mono',monospace;font-size:.6rem;letter-spacing:1.6px;color:var(--t3);text-transform:uppercase;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+@media print{.tabs{display:none}.view{display:block!important;page-break-after:always}}
+</style>
+</head>
+<body>
+<div class="hero z">
+  <span class="tag">Painel do Projeto · Aprovação e Go-Live</span>
+  <h1>Plataforma do <b>Representante</b></h1>
+  <p>Documento único de aprovação: layout, integração Excia/ERP, ecossistema, cronograma e as decisões que faltam para o projeto entrar em construção. Aprovou aqui, o time constrói sem retrabalho.</p>
+  <div class="meta">representantes.grupocatarina.com · gcrep (google sites) · toolkit sell-out v1.2 · julho 2026</div>
+</div>
+
+<div class="tabs z">
+  <button class="tab act" data-v="eco" onclick="ir('eco')">1 · Ecossistema</button>
+  <button class="tab" data-v="layout" onclick="ir('layout')">2 · Aprovação de Layout</button>
+  <button class="tab" data-v="excia" onclick="ir('excia')">3 · Integração Excia</button>
+  <button class="tab" data-v="plano" onclick="ir('plano')">4 · Cronograma e Papéis</button>
+  <button class="tab" data-v="golive" onclick="ir('golive')">5 · Pendências e Go-Live</button>
+</div>
+
+<div class="wrap z">
+
+<!-- ================= 1 ECOSSISTEMA ================= -->
+<div class="view act" id="v-eco">
+  <h2 class="sec"><span>O QUE ESTÁ SENDO CONSTRUÍDO</span>Um ecossistema, quatro peças, uma regra</h2>
+  <p class="lead">A regra de arquitetura: o Google Sites informa e direciona; as ferramentas transacionais vivem na plataforma e são linkadas; o dado nasce no Excia e alimenta tudo por uma única carga. Nenhuma informação existe em dois lugares.</p>
+  <div class="eco">
+    <div class="node"><span class="k">Hub · Google Sites</span><h4>Central do Representante GC</h4><p>Políticas de vendas e devolução, catálogos, tabela de preços, campanhas, comunicados, contatos e os links para as ferramentas. Acesso restrito por e-mail.</p></div>
+    <div class="node"><span class="k">Plataforma · VPS</span><h4>representantes.grupocatarina.com</h4><p>Login individual por RC. Painel V27 vs V26, carteira com histórico por coleção e marca, recompra em risco, comunicados estratégicos.</p></div>
+    <div class="node"><span class="k">Ferramenta · Formulário</span><h4>Análise da Ação + Kit</h4><p>Diagnóstico do cliente, motor de recomendação sobre o histórico real e prescrição com fluxo de aprovação comercial e marketing.</p></div>
+    <div class="node"><span class="k">Transacional · B2B</span><h4>Pedido online</h4><p>Sistema existente, linkado do hub e da plataforma. Em divergência de preço com a tabela, vale o B2B no momento do pedido.</p></div>
+  </div>
+  <div class="flowline">EXCIA/ERP · exporta vendas por coleção e marca · alimenta a plataforma e o formulário · o hub linka tudo</div>
+
+  <div class="duo">
+    <div class="panel">
+      <h2 class="sec" style="margin-top:0"><span>JORNADA DO REPRESENTANTE</span>Do número à ação em 4 cliques</h2>
+      <table class="tb">
+        <tr><td class="mono">1</td><td>Entra no hub (gcrep) e clica em Painel da Coleção</td></tr>
+        <tr><td class="mono">2</td><td>Na plataforma, vê a carteira V27 vs V26 e a lista de recompra em risco</td></tr>
+        <tr><td class="mono">3</td><td>Clica em Solicitar Ação: o formulário abre com o cliente e o histórico pré-carregados</td></tr>
+        <tr><td class="mono">4</td><td>Envia a prescrição, recebe o protocolo e acompanha a timeline de aprovação</td></tr>
+      </table>
+    </div>
+    <div class="panel">
+      <h2 class="sec" style="margin-top:0"><span>NÚMEROS DA BASE JÁ PROCESSADA</span>O projeto não parte do zero</h2>
+      <table class="tb">
+        <tr><td><b>2.374</b> clientes ativos (faturamento nos últimos 2 anos), com histórico aberto por coleção e marca</td></tr>
+        <tr><td><b>32</b> representantes do roster Verão 2027, com e-mails para o controle de acesso</td></tr>
+        <tr><td><b>8.313</b> linhas de histórico coleção x marca (I25 a V27)</td></tr>
+        <tr><td>Curva A/B/C por tercil real da carteira: A a partir de R$147,7 mil; B a partir de R$18,3 mil</td></tr>
+        <tr><td>Motor de recomendação com 10 gatilhos de diagnóstico e 12 ações do cardápio</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 2 LAYOUT ================= -->
+<div class="view" id="v-layout">
+  <h2 class="sec"><span>IDENTIDADE APLICADA</span>Linguagem visual para aprovação</h2>
+  <p class="lead">Base extraída do painel V27 (Sol e Sombra): terracota e âmbar sobre creme, serifada Fraunces em itálico nos títulos, IBM Plex no corpo e mono nos dados. A marca-mãe assina discreta; as três marcas aparecem como cor de dado (KIKI dourado, Menina Anjo terracota, Valent verde).</p>
+
+  <div class="panel">
+    <h2 class="sec" style="margin-top:0"><span>ESPÉCIME 01</span>Paleta</h2>
+    <div class="spec">
+      <div class="chip" style="background:#4a2318"><span class="h">Deep · ação</span><span class="c">#4A2318</span></div>
+      <div class="chip" style="background:#8b4a3a"><span class="h">Terra · destaque</span><span class="c">#8B4A3A</span></div>
+      <div class="chip" style="background:#d4a574;color:#4a2318"><span class="h">Âmbar · realce</span><span class="c">#D4A574</span></div>
+      <div class="chip" style="background:#faf5ed;color:#4a3a2f;border:1px solid #e3d9c4"><span class="h">Creme · fundo</span><span class="c">#FAF5ED</span></div>
+      <div class="chip" style="background:#c9a855;color:#4a2318"><span class="h">KIKI</span><span class="c">#C9A855</span></div>
+      <div class="chip" style="background:#b54a2a"><span class="h">Menina Anjo</span><span class="c">#B54A2A</span></div>
+      <div class="chip" style="background:#6b8a5f"><span class="h">Valent</span><span class="c">#6B8A5F</span></div>
+    </div>
+  </div>
+
+  <div class="duo">
+    <div class="panel typo">
+      <div class="l">Espécime 02 · Tipografia</div>
+      <div class="fr">Fraunces itálica para títulos</div>
+      <div class="px">IBM Plex Sans para leitura corrida, formulários e tabelas de conteúdo.</div>
+      <div class="jb">JetBrains Mono para códigos, valores e etiquetas: R$ 147.707 · CODCLI 4512 · V27</div>
+    </div>
+    <div class="panel">
+      <h2 class="sec" style="margin-top:0"><span>ESPÉCIME 03</span>Componentes</h2>
+      <p style="margin-bottom:10px"><span class="badge ok">+38%</span> <span class="badge dec">-12%</span> <span class="badge pend">EM ANDAMENTO</span> <span class="badge info">CURVA A</span></p>
+      <button style="background:var(--deep);color:var(--paper);border:none;border-radius:9px;padding:11px 20px;font-weight:700;font-size:.8rem;font-family:inherit">Botão primário</button>
+      <button style="background:none;color:var(--terra);border:1.5px solid var(--terra);border-radius:9px;padding:11px 20px;font-weight:700;font-size:.8rem;font-family:inherit;margin-left:8px">Botão fantasma</button>
+      <p style="font-size:.72rem;color:var(--t3);margin-top:10px">Cartão de prescrição com selo âmbar rotacionado, sombra deslocada e código de barras tipográfico como assinatura da peça.</p>
+    </div>
+  </div>
+
+  <h2 class="sec"><span>TELAS</span>Aprovar, ajustar ou reprovar cada tela</h2>
+  <div class="shots">
+    <div class="shot"><div class="scr"><div class="wf-login"><div class="c"><i class="t"></i><i></i><i></i><i class="btn"></i></div></div></div>
+      <div class="cap"><h5>T1 · Login da plataforma</h5><p>Seleção do RC + código de acesso. Diretoria com visão total.</p></div>
+      <div class="aprv" data-t="T1"><button onclick="ap(this,1)">APROVAR</button><button class="aj" onclick="ap(this,2)">AJUSTAR</button></div></div>
+    <div class="shot"><div class="scr"><div class="wf-hero"><i></i><i class="b"></i></div><div class="wf-tabs"><i></i><i></i><i></i><i></i><i></i></div><div class="wf-k"><i></i><i></i><i></i><i></i></div><div class="wf-bars"><i style="background:var(--beige);width:70%"></i><i style="background:var(--gold);width:85%"></i><i style="background:var(--beige);width:40%"></i><i style="background:var(--ma);width:55%"></i></div><div class="wf-tab2"><i></i><i></i><i></i><i></i></div></div>
+      <div class="cap"><h5>T2 · Painel V27</h5><p>KPIs, barras por marca V26 vs V27, top 10 e recompra em risco.</p></div>
+      <div class="aprv" data-t="T2"><button onclick="ap(this,1)">APROVAR</button><button class="aj" onclick="ap(this,2)">AJUSTAR</button></div></div>
+    <div class="shot"><div class="scr"><div class="wf-hero"><i></i><i class="b"></i></div><div class="wf-tabs"><i></i><i></i><i></i><i></i><i></i></div><div class="wf-form" style="top:80px"><i class="t"></i><i></i><i></i><i></i><i></i><i></i></div></div>
+      <div class="cap"><h5>T3 · Minha Carteira</h5><p>Busca, curva, V26 vs V27 e o histórico do cliente aberto por coleção e marca.</p></div>
+      <div class="aprv" data-t="T3"><button onclick="ap(this,1)">APROVAR</button><button class="aj" onclick="ap(this,2)">AJUSTAR</button></div></div>
+    <div class="shot"><div class="scr"><div class="wf-hero"><i></i><i class="b"></i></div><div class="wf-form"><i class="t"></i><i></i><i></i><i class="t"></i><i></i><i></i><i class="btn"></i></div></div>
+      <div class="cap"><h5>T4 · Formulário Análise da Ação</h5><p>5 passos: identificação com ERP automático, PDV + fotos, motivo, análise, contexto.</p></div>
+      <div class="aprv" data-t="T4"><button onclick="ap(this,1)">APROVAR</button><button class="aj" onclick="ap(this,2)">AJUSTAR</button></div></div>
+    <div class="shot"><div class="scr"><div class="wf-hero"><i></i><i class="b"></i></div><div class="wf-rx"><div class="h"><i></i><em></em></div><div class="a"><i></i><em></em></div><div class="a"><i></i><em></em></div><div class="a"><i></i><em></em></div></div></div>
+      <div class="cap"><h5>T5 · Prescrição e protocolo</h5><p>Kit recomendado com reason why, totais, alçada e timeline de aprovação.</p></div>
+      <div class="aprv" data-t="T5"><button onclick="ap(this,1)">APROVAR</button><button class="aj" onclick="ap(this,2)">AJUSTAR</button></div></div>
+    <div class="shot"><div class="scr"><div class="wf-hub"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+      <div class="cap"><h5>T6 · Hub Google Sites (gcrep)</h5><p>Início com 3 botões de destaque e grade de acesso rápido; páginas de políticas, catálogos, tabela e campanhas.</p></div>
+      <div class="aprv" data-t="T6"><button onclick="ap(this,1)">APROVAR</button><button class="aj" onclick="ap(this,2)">AJUSTAR</button></div></div>
+  </div>
+  <div class="gate"><b>Gate de layout:</b> as 6 telas aprovadas (ou com ajuste anotado) liberam a Fase de construção. Ajustes solicitados entram como revisão única antes do go-live; mudanças depois disso viram versão 2.</div>
+</div>
+
+<!-- ================= 3 EXCIA ================= -->
+<div class="view" id="v-excia">
+  <h2 class="sec"><span>DADO ÚNICO, CARGA ÚNICA</span>Integração Excia / ERP</h2>
+  <p class="lead">A plataforma inteira é alimentada por uma exportação do Excia. A fase 1 opera com carga manual de planilha (15 minutos por atualização); a fase 2 automatiza. O contrato de dados abaixo é o que precisa ser aprovado com o comercial e com quem opera o Excia.</p>
+
+  <div class="panel">
+    <h2 class="sec" style="margin-top:0"><span>PIPELINE</span>Da venda ao painel</h2>
+    <div class="pipe">
+      <div class="st"><span class="n">ETAPA 1</span><b>Exportação Excia</b><span>Relatório de vendas por cliente x coleção x marca, valores líquidos. Layout do contrato de dados ao lado.</span></div>
+      <div class="st"><span class="n">ETAPA 2</span><b>Script de carga</b><span>Consolida coleções, converte centavos, recalcula fat24m, curva por tercil e tendência, vincula representante.</span></div>
+      <div class="st"><span class="n">ETAPA 3</span><b>Publicação</b><span>Gera plataforma e formulário atualizados e sobe para o VPS. Data da carga aparece no rodapé.</span></div>
+      <div class="st"><span class="n">ETAPA 4</span><b>Consumo</b><span>Painel, carteira e motor do formulário passam a operar com o dado novo. Hub não muda.</span></div>
+    </div>
+  </div>
+
+  <div class="duo">
+    <div class="panel">
+      <h2 class="sec" style="margin-top:0"><span>CONTRATO DE DADOS</span>Layout da exportação (De/Para)</h2>
+      <table class="tb">
+        <tr><th>Campo Excia</th><th>Campo plataforma</th><th>Regra</th></tr>
+        <tr><td class="mono">CODCLI</td><td class="mono">codcli</td><td>Chave; texto sem zeros à esquerda</td></tr>
+        <tr><td class="mono">NOME / NOME_CID / COD_EST</td><td class="mono">fantasia · cidade · uf</td><td>Direto</td></tr>
+        <tr><td class="mono">CODREP</td><td class="mono">rep</td><td><span class="badge dec">INCLUIR NO EXPORT</span> hoje o vínculo é aproximado por UF</td></tr>
+        <tr><td class="mono">MARCA</td><td class="mono">KIKI · MA · VAL</td><td>3 marcas; demais linhas descartadas</td></tr>
+        <tr><td class="mono">COLEÇÃO (colunas)</td><td class="mono">I25 T25 V26 I26 T26 V27</td><td>Primavera + Verão somadas por coleção; ano da coleção, nunca do pedido</td></tr>
+        <tr><td class="mono">VALOR_LIQ</td><td class="mono">valor</td><td>Centavos ÷ 100 <span class="badge pend">CONFIRMAR PREMISSA</span></td></tr>
+      </table>
+    </div>
+    <div class="panel">
+      <h2 class="sec" style="margin-top:0"><span>REGRAS DE QUALIDADE</span>Validações automáticas da carga</h2>
+      <table class="tb">
+        <tr><td>1</td><td>Excluir sacolas, uniformes, embalagens e materiais de loja de qualquer soma (metodologia oficial de análise)</td></tr>
+        <tr><td>2</td><td>Cliente sem faturamento em 24 meses sai da base ativa (não aparece na carteira)</td></tr>
+        <tr><td>3</td><td>Curva recalculada por tercil a cada carga; tendência = I26+T26+V27 vs I25+T25+V26 (corte de ±10%)</td></tr>
+        <tr><td>4</td><td>Relatório de carga: total geral vs relatório oficial do Excia deve bater ao centavo; divergência bloqueia a publicação</td></tr>
+        <tr><td>5</td><td>Log de carga com data e responsável; a data aparece no rodapé da plataforma</td></tr>
+      </table>
+      <p style="font-size:.78rem;color:var(--t3);margin-top:8px">Frequência acordada: semanal durante a campanha V27 (janela de 150 dias com 2 ondas), mensal fora de campanha.</p>
+    </div>
+  </div>
+  <div class="gate"><b>Gate de dados:</b> integração aprovada quando (1) o export com CODREP estiver definido com quem opera o Excia, (2) a premissa dos centavos for confirmada em 3 clientes contra o relatório oficial e (3) a primeira carga bater ao centavo.</div>
+</div>
+
+<!-- ================= 4 PLANO ================= -->
+<div class="view" id="v-plano">
+  <h2 class="sec"><span>4 SEMANAS ATÉ O PILOTO</span>Cronograma de construção</h2>
+  <div class="panel">
+    <div class="gantt">
+      <div></div><div class="h">Semana 1</div><div class="h">Semana 2</div><div class="h">Semana 3</div><div class="h">Semana 4</div>
+      <div class="r">Aprovação de layout e decisões (este painel)</div><div class="b on"></div><div class="b off"></div><div class="b off"></div><div class="b off"></div>
+      <div class="r">VPS: DNS, HTTPS, publicação fase 1</div><div class="b on"></div><div class="b on2"></div><div class="b off"></div><div class="b off"></div>
+      <div class="r">Excia: export com CODREP + primeira carga validada</div><div class="b off"></div><div class="b on"></div><div class="b on2"></div><div class="b off"></div>
+      <div class="r">Hub gcrep: páginas, PDFs, acessos restritos</div><div class="b off"></div><div class="b on"></div><div class="b on"></div><div class="b off"></div>
+      <div class="r">Teste interno (3 RCs convidados) e ajustes</div><div class="b off"></div><div class="b off"></div><div class="b on"></div><div class="b on2"></div>
+      <div class="r">Go-live piloto: 2 regionais + comunicado oficial</div><div class="b off"></div><div class="b off"></div><div class="b off"></div><div class="b on"></div>
+    </div>
+    <p style="font-size:.72rem;color:var(--t3);margin-top:10px">Terracota: execução principal · Âmbar: folga/ajuste. Fase 2 (autenticação real, aprovações vivas, upload de Excel pelo navegador) inicia após 30 dias de piloto com aprendizados incorporados.</p>
+  </div>
+
+  <div class="panel">
+    <h2 class="sec" style="margin-top:0"><span>QUEM FAZ O QUÊ</span>Papéis e responsabilidades</h2>
+    <table class="tb">
+      <tr><th>Frente</th><th>Responsável</th><th>Apoio</th><th>Aprova</th></tr>
+      <tr><td>Layout e conteúdo (plataforma, formulário, hub)</td><td>Produto &amp; Marketing (Thatiane)</td><td>Claude (construção)</td><td>Diretoria</td></tr>
+      <tr><td>Export Excia e contrato de dados</td><td>Comercial / operador Excia</td><td>Produto &amp; Marketing</td><td>Gerência comercial</td></tr>
+      <tr><td>VPS, DNS e publicação</td><td>TI / fornecedor de infra</td><td>Roteiro pronto (guia VPS)</td><td>Produto &amp; Marketing</td></tr>
+      <tr><td>Políticas e tabela de preços (PDFs/Sheets)</td><td>Comercial</td><td>Marketing (padronização)</td><td>Diretoria comercial</td></tr>
+      <tr><td>Fluxo de aprovação das ações (alçadas e SLAs)</td><td>Comercial + Marketing</td><td>Toolkit v1.2 (Seção 7)</td><td>Comitê</td></tr>
+      <tr><td>Acessos (32 RCs) e comunicação de lançamento</td><td>Produto &amp; Marketing</td><td>Gestores regionais</td><td>Diretoria</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ================= 5 GO-LIVE ================= -->
+<div class="view" id="v-golive">
+  <h2 class="sec"><span>O QUE FALTA DECIDIR E FAZER</span>Pendências para o projeto rodar</h2>
+  <div class="prog"><span style="font-size:.72rem;color:var(--t3);letter-spacing:1px" class="mono">PRONTIDÃO</span><div class="bar"><div class="fill" id="pfill"></div></div><div class="n" id="pnum">0%</div></div>
+
+  <div class="panel">
+    <h2 class="sec" style="margin-top:0"><span>DECISÕES (travam construção)</span>Marcar conforme resolvido</h2>
+    <ul class="check" id="ckDec">
+      <li onclick="tg(this)"><span class="cbx"></span><span><b>Aprovar layout das 6 telas</b><small>Aba 2 deste painel; ajustes viram revisão única</small></span><span class="who">Diretoria</span></li>
+      <li onclick="tg(this)"><span class="cbx"></span><span><b>Confirmar premissa dos centavos</b><small>Validar 3 clientes (144, 433, 2) contra o relatório oficial do Excia</small></span><span class="who">Comercial</span></li>
+      <li onclick="tg(this)"><span class="cbx"></span><span><b>Incluir CODREP no export do Excia</b><small>Substitui o vínculo aproximado por UF pelo vínculo real cliente-representante</small></span><span class="who">Operador Excia</span></li>
+      <li onclick="tg(this)"><span class="cbx"></span><span><b>Definir frequência da carga</b><small>Proposta: semanal na campanha V27, mensal fora</small></span><span class="who">Comercial + MKT</span></li>
+      <li onclick="tg(this)"><span class="cbx"></span><span><b>Aprovar alçadas e SLAs do fluxo de ações</b><small>Até R$1,5 mil regional; até R$5 mil gerência + head; acima, comitê. SLA 3 dias úteis por instância</small></span><span class="who">Comitê</span></li>
+      <li onclick="tg(this)"><span class="cbx"></span><span><b>Definir as 2 regionais do piloto</b><small>Sugestão: 1 regional Sul (carteira densa) + 1 Sudeste (praça competitiva)</small></span><span class="who">Diretoria comercial</span></li>
+    </ul>
+  </div>
+
+  <div class="duo">
+    <div class="panel">
+      <h2 class="sec" style="margin-top:0"><span>INFRA E CONTEÚDO</span></h2>
+      <ul class="check" id="ckInf">
+        <li onclick="tg(this)"><span class="cbx"></span><span><b>Contratar/apontar o VPS</b><small>Ubuntu 22+, 1 vCPU/1GB atende a fase 1</small></span><span class="who">TI</span></li>
+        <li onclick="tg(this)"><span class="cbx"></span><span><b>DNS: criar representantes.grupocatarina.com</b><small>Registro A para o IP do VPS</small></span><span class="who">TI</span></li>
+        <li onclick="tg(this)"><span class="cbx"></span><span><b>HTTPS + senha do portal</b><small>Certbot + auth_basic conforme o guia VPS</small></span><span class="who">TI</span></li>
+        <li onclick="tg(this)"><span class="cbx"></span><span><b>PDFs oficiais: políticas, tabela, catálogos, regulamentos</b><small>Pasta única no Drive; hub e plataforma apontam para lá</small></span><span class="who">Comercial + MKT</span></li>
+        <li onclick="tg(this)"><span class="cbx"></span><span><b>Montar o hub gcrep</b><small>Estrutura e textos prontos no documento do Google Sites</small></span><span class="who">MKT</span></li>
+        <li onclick="tg(this)"><span class="cbx"></span><span><b>Restringir acessos</b><small>32 e-mails do roster V27 no site e nos arquivos do Drive</small></span><span class="who">MKT</span></li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2 class="sec" style="margin-top:0"><span>VALIDAÇÃO E LANÇAMENTO</span></h2>
+      <ul class="check" id="ckVal">
+        <li onclick="tg(this)"><span class="cbx"></span><span><b>Primeira carga batendo ao centavo</b><small>Total da plataforma = relatório oficial Excia</small></span><span class="who">MKT + Comercial</span></li>
+        <li onclick="tg(this)"><span class="cbx"></span><span><b>Teste com 3 RCs convidados</b><small>Login, painel, carteira, formulário de ponta a ponta com cliente real</small></span><span class="who">MKT</span></li>
+        <li onclick="tg(this)"><span class="cbx"></span><span><b>Registro SPA do Guarda-Roupa KIKI</b><small>Antes de qualquer divulgação da campanha (concurso vinculado a compra)</small></span><span class="who">Jurídico</span></li>
+        <li onclick="tg(this)"><span class="cbx"></span><span><b>Comunicado de lançamento + treinamento relâmpago</b><small>Vídeo de 3 minutos: hub, painel e a regra sem diagnóstico, sem ação</small></span><span class="who">MKT</span></li>
+        <li onclick="tg(this)"><span class="cbx"></span><span><b>Go-live piloto (2 regionais)</b><small>Revisão de aprendizados em 30 dias libera o rollout e a fase 2</small></span><span class="who">Todos</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="gate"><b>Critério de go-live:</b> 100% das decisões + infra concluída + primeira carga validada. Sem exceção: dado que não bate ao centavo não vai para a mão do representante.</div>
+</div>
+
+</div>
+
+<footer class="z">
+  <span>Grupo Catarina · Produto &amp; Marketing</span>
+  <span>Painel do Projeto v1.0 · Julho 2026</span>
+  <span>Imprimir = registro da aprovação</span>
+</footer>
+
+<script>
+function ir(v){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('act',t.dataset.v===v));
+  document.querySelectorAll('.view').forEach(x=>x.classList.toggle('act',x.id==='v-'+v));
+  window.scrollTo({top:0});
+}
+function ap(btn,mode){
+  const box=btn.parentElement;
+  box.querySelectorAll('button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  btn.textContent = btn.classList.contains('aj') ? 'AJUSTAR ✎' : 'APROVADO ✓';
+  const other=box.querySelector(btn.classList.contains('aj')?'button:not(.aj)':'button.aj');
+  other.textContent = other.classList.contains('aj')?'AJUSTAR':'APROVAR';
+}
+function tg(li){li.classList.toggle('done');prog()}
+function prog(){
+  const all=document.querySelectorAll('.check li');
+  const done=document.querySelectorAll('.check li.done');
+  const p=all.length?Math.round(done.length/all.length*100):0;
+  document.getElementById('pfill').style.width=p+'%';
+  document.getElementById('pnum').textContent=p+'%';
+}
+</script>
+</body>
+</html>

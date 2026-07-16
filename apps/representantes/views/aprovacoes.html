@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aprovações · Grupo Catarina</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+ --bg:#ECEDEF;--card:#FFFFFF;--ink:#101828;--mut:#667085;--line:#EAECF0;--soft:#F2F4F7;
+ --blue:#2563EB;--blue-d:#1D4ED8;--green:#12B76A;--amber:#F79009;--red:#F04438;--violet:#7A5AF8;
+ --t-amber:#FEF4E3;--t-blue:#E7F1FE;--t-green:#E7F7EE;--t-red:#FDEBEC;--t-violet:#F0EDFE;
+ --sh:0 1px 2px rgba(16,24,40,.05),0 8px 24px -8px rgba(16,24,40,.08);--r:20px;--r2:12px}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer}
+.mono{font-variant-numeric:tabular-nums}
+/* login */
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.lcard{background:var(--card);border-radius:24px;box-shadow:var(--sh);padding:40px;width:100%;max-width:400px}
+.lcard h1{font-size:1.4rem;font-weight:700;letter-spacing:-.5px;margin-bottom:4px}
+.lcard>p{color:var(--mut);font-size:.84rem;margin-bottom:22px}
+label.f{display:block;font-size:.78rem;font-weight:600;color:#344054;margin:14px 0 6px}
+input{width:100%;padding:11px 14px;border:1px solid #D0D5DD;border-radius:var(--r2);background:#fff;font:inherit;font-size:.88rem}
+input:focus{outline:3px solid rgba(37,99,235,.18);border-color:var(--blue)}
+.btn{background:var(--blue);color:#fff;border:none;border-radius:var(--r2);padding:12px 20px;font-weight:600;font-size:.86rem}
+.btn:hover{background:var(--blue-d)}
+.btn.ghost{background:#fff;color:#344054;border:1px solid #D0D5DD}
+.btn.ok{background:var(--green)}
+.btn.warn{background:var(--amber)}
+.btn.danger{background:var(--red)}
+.btn.w{width:100%;margin-top:20px;padding:13px}
+.lerr{color:var(--red);font-size:.78rem;margin-top:10px;display:none}
+/* app */
+#app{display:none}
+.top{background:var(--card);border-bottom:1px solid var(--line);padding:16px 28px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:40}
+.top b{font-size:1.05rem;font-weight:700}
+.top .sp{flex:1}
+.pill{border:1px solid var(--line);background:#fff;border-radius:var(--r2);padding:8px 14px;font-weight:600;font-size:.82rem}
+.wrap{max-width:960px;margin:0 auto;padding:28px}
+.hd{display:flex;align-items:baseline;gap:12px;margin-bottom:18px}
+.hd h2{font-size:1.3rem;font-weight:700;letter-spacing:-.4px}
+.hd span{color:var(--mut);font-size:.85rem}
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);padding:22px;margin-bottom:16px}
+.card .rowh{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:12px}
+.card h3{font-size:1.05rem;font-weight:700}
+.card .sub{color:var(--mut);font-size:.8rem;margin-top:2px}
+.proto{font-size:.72rem;color:var(--mut);font-weight:600;letter-spacing:.4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0}
+.kv{background:var(--soft);border-radius:var(--r2);padding:10px 12px}
+.kv .l{font-size:.68rem;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.kv .v{font-size:.95rem;font-weight:700;margin-top:2px}
+.kit{margin:10px 0}
+.kit li{list-style:none;padding:6px 0;border-bottom:1px dashed var(--line);font-size:.85rem}
+.kit li:last-child{border:none}
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:.7rem;font-weight:700}
+.badge.inst{background:var(--t-blue);color:var(--blue-d)}
+.alerta{background:var(--t-amber);color:#B54708;border-radius:var(--r2);padding:10px 12px;font-size:.78rem;margin:10px 0}
+.actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.empty{text-align:center;color:var(--mut);padding:60px 20px}
+/* modal */
+#modal{display:none;position:fixed;inset:0;background:rgba(16,24,40,.45);align-items:center;justify-content:center;z-index:60;padding:20px}
+.mcard{background:#fff;border-radius:var(--r);padding:26px;max-width:460px;width:100%;box-shadow:var(--sh)}
+.mcard h3{font-size:1.1rem;font-weight:700;margin-bottom:6px}
+.mcard p{color:var(--mut);font-size:.84rem;margin-bottom:12px}
+textarea{width:100%;min-height:90px;padding:11px 14px;border:1px solid #D0D5DD;border-radius:var(--r2);font:inherit;font-size:.86rem;resize:vertical}
+.mfoot{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+</style>
+</head>
+<body>
+<div id="login">
+ <div class="lcard">
+  <h1>Aprovações</h1>
+  <p>Fila de prescrições · Grupo Catarina</p>
+  <label class="f">Usuário (Cód / e-mail interno)</label>
+  <input type="text" id="inpCod" placeholder="gestor, marketing ou 0 (diretoria)" autocomplete="username">
+  <label class="f">Senha</label>
+  <input type="password" id="inpSenha" autocomplete="current-password" onkeydown="if(event.key==='Enter')entrar()">
+  <button class="btn w" onclick="entrar()">Entrar</button>
+  <div class="lerr" id="lerr"></div>
+ </div>
+</div>
+
+<div id="app">
+ <div class="top">
+  <b>Grupo Catarina</b> <span style="color:var(--mut)">· Aprovações</span>
+  <div class="sp"></div>
+  <span class="pill" id="pillUser"></span>
+  <button class="btn ghost" onclick="sair()">Sair</button>
+ </div>
+ <div class="wrap">
+  <div class="hd"><h2>Fila de aprovação</h2><span id="cnt"></span></div>
+  <div id="fila"></div>
+ </div>
+</div>
+
+<div id="modal">
+ <div class="mcard">
+  <h3 id="mtit"></h3>
+  <p id="msub"></p>
+  <textarea id="mjust" placeholder="Justificativa (obrigatória na reprovação)"></textarea>
+  <div class="mfoot">
+   <button class="btn ghost" onclick="fecharModal()">Cancelar</button>
+   <button class="btn" id="mconf" onclick="confirmarDecisao()">Confirmar</button>
+  </div>
+ </div>
+</div>
+
+<script>
+const fmt=v=>'R$ '+Math.round(v).toLocaleString('pt-BR');
+let PEND=null; // {protocolo, decisao}
+
+async function entrar(){
+  const cod=document.getElementById('inpCod').value.trim();
+  const senha=document.getElementById('inpSenha').value;
+  const err=document.getElementById('lerr');
+  try{
+    const r=await fetch('/api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({cod,senha})});
+    const d=await r.json();
+    if(!r.ok){err.textContent=d.error||'Falha no login.';err.style.display='block';return}
+    if(!['gestor','marketing','admin'].includes(d.rep.papel)){
+      err.textContent='Este acesso é restrito a gestor, marketing ou diretoria.';err.style.display='block';return}
+    err.style.display='none';
+    document.getElementById('pillUser').textContent=d.rep.nome;
+    document.getElementById('login').style.display='none';
+    document.getElementById('app').style.display='block';
+    carregar();
+  }catch(e){err.textContent='Erro de conexão.';err.style.display='block'}
+}
+function sair(){fetch('/api/logout',{method:'POST'}).finally(()=>location.reload())}
+
+async function carregar(){
+  const r=await fetch('/api/aprovacoes');
+  if(r.status===401){location.reload();return}
+  const fila=await r.json();
+  document.getElementById('cnt').textContent=fila.length+' prescriç'+(fila.length===1?'ão':'ões')+' aguardando';
+  const el=document.getElementById('fila');
+  if(!fila.length){el.innerHTML='<div class="empty">Nenhuma prescrição na fila. 🎉</div>';return}
+  el.innerHTML=fila.map(p=>`
+   <div class="card">
+     <div class="rowh">
+       <div>
+         <div class="proto">${p.protocolo} · <span class="badge inst">${p.instancia}</span></div>
+         <h3>${p.cliente||p.codcli} <span style="color:var(--mut);font-weight:500;font-size:.85rem">· ${p.codcli}</span></h3>
+         <div class="sub">Representante: ${p.representante||p.rep_cod||'—'} · Tipologia ${p.tipologia||'—'}</div>
+       </div>
+       <span class="badge inst">${p.alcada||''}</span>
+     </div>
+     <div class="sub" style="margin-bottom:6px"><b>Motivo:</b> ${p.motivo||''}</div>
+     <ul class="kit">${(p.kit||[]).map((k,i)=>`<li>${i+1}. <b>${k.nome}</b> · ${fmt(k.inv[0])} a ${fmt(k.inv[1])}</li>`).join('')}</ul>
+     <div class="grid">
+       <div class="kv"><div class="l">Investimento</div><div class="v">${fmt(p.invest_min)} a ${fmt(p.invest_max)}</div></div>
+       <div class="kv"><div class="l">Meta 60d</div><div class="v">+${p.meta}%</div></div>
+       <div class="kv"><div class="l">Alçada</div><div class="v" style="font-size:.8rem">${p.alcada||'—'}</div></div>
+     </div>
+     ${(p.alertas&&p.alertas.length)?`<div class="alerta">${p.alertas.join('<br>')}</div>`:''}
+     <div class="actions">
+       <button class="btn ok" onclick="abrirModal('${p.protocolo}','aprovar')">Aprovar</button>
+       <button class="btn warn" onclick="abrirModal('${p.protocolo}','ajustar')">Ajustar</button>
+       <button class="btn danger" onclick="abrirModal('${p.protocolo}','reprovar')">Reprovar</button>
+     </div>
+   </div>`).join('');
+}
+
+function abrirModal(protocolo,decisao){
+  PEND={protocolo,decisao};
+  const tit={aprovar:'Aprovar prescrição',ajustar:'Solicitar ajuste',reprovar:'Reprovar prescrição'}[decisao];
+  document.getElementById('mtit').textContent=tit;
+  document.getElementById('msub').textContent='Protocolo '+protocolo+(decisao==='reprovar'?' · justificativa obrigatória':'');
+  document.getElementById('mjust').value='';
+  const b=document.getElementById('mconf');
+  b.className='btn '+(decisao==='aprovar'?'ok':decisao==='reprovar'?'danger':'warn');
+  b.textContent='Confirmar '+decisao;
+  document.getElementById('modal').style.display='flex';
+}
+function fecharModal(){document.getElementById('modal').style.display='none';PEND=null}
+
+async function confirmarDecisao(){
+  if(!PEND)return;
+  const just=document.getElementById('mjust').value.trim();
+  if(PEND.decisao==='reprovar'&&!just){alert('Justificativa obrigatória na reprovação.');return}
+  const r=await fetch('/api/aprovacoes/'+encodeURIComponent(PEND.protocolo),{
+    method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({decisao:PEND.decisao,justificativa:just})});
+  const d=await r.json();
+  if(!r.ok){alert(d.error||'Falha ao registrar a decisão.');return}
+  fecharModal();carregar();
+}
+</script>
+</body>
+</html>
