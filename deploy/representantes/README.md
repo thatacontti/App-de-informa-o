@@ -37,20 +37,24 @@ teste pelo IP do VPS: `http://SEU_IP/` (a plataforma) e `http://SEU_IP/healthz`.
 
 ## 2. Quando o subdomínio for liberado (go-live HTTPS)
 
+> **Ordem:** o HTTPS **não** é pré-requisito do domínio. Primeiro aponta-se o
+> DNS; o certificado só pode ser emitido **depois** que o domínio resolve para
+> o VPS (o Let's Encrypt valida acessando o domínio). Então:
+
 1. **DNS:** criar registro `A` de `representantes` → IP do VPS (TTL 3600).
    Confirmar propagação: `dig +short representantes.grupocatarina.com`.
-2. **Certificado** (com o app já no ar em HTTP e o webroot ACME servindo):
+2. **Ativar HTTPS — um comando** (emite o certificado e ativa o HTTPS sozinho):
    ```bash
-   sudo certbot certonly --webroot -w deploy/representantes/certbot-www \
-     -d representantes.grupocatarina.com --agree-tos -m ti@grupocatarina.com
+   cd deploy/representantes && ./enable-https.sh ti@grupocatarina.com
    ```
-3. **Habilitar HTTPS:** em `nginx-representantes.conf`, descomente o bloco
-   `server { listen 443 ... }` e troque o `location /` do bloco :80 por
-   `return 301 https://$host$request_uri;`. Recarregar:
-   ```bash
-   docker compose -f deploy/representantes/docker-compose.yml restart nginx
-   ```
-4. **Renovação automática:** `certbot renew` no cron do host + `restart nginx`.
+   O script confere o DNS, sobe o app em HTTP, emite o certificado via webroot
+   (certbot em container), troca o nginx para a config HTTPS
+   (`nginx-https.conf`) e reinicia. Ao final imprime a linha de cron da
+   **renovação automática** para colar no `crontab -e` do host.
+
+Variantes de nginx no diretório: `nginx-representantes.conf` (ativa, começa em
+HTTP) e `nginx-https.conf` (aplicada pelo `enable-https.sh`). Nada de edição
+manual.
 
 ## 3. Integração Excia no VPS
 

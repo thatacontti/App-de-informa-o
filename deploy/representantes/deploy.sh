@@ -35,5 +35,5 @@ echo
 echo "== Pronto =="
 echo "  App atrás do Nginx na porta 80 (HTTP)."
 echo "  Enquanto o domínio não é liberado, teste pelo IP do VPS:  http://SEU_IP/"
-echo "  Quando representantes.grupocatarina.com apontar para o VPS, rode o certbot"
-echo "  (ver README, seção HTTPS) e habilite o bloco 443 no nginx-representantes.conf."
+echo "  Quando representantes.grupocatarina.com apontar para o VPS, ative o HTTPS"
+echo "  com um comando:  ./enable-https.sh ti@grupocatarina.com"
