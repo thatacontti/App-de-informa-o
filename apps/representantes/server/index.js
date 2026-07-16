@@ -10,8 +10,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { db, ensureSchema, isSeeded } from './db.js';
 import { api } from './routes/api.js';
-import { requireAuth, requireRole } from './auth.js';
+import { requireAuth, requireAuthPage, requireRole, isDiretoria } from './auth.js';
 import { seed } from './seed.js';
+import { painelDisponivel, resolveRepNome, listRepsPainel, buildPainelRep } from './lib/painelRep.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
@@ -87,6 +88,62 @@ app.get(['/formulario', '/formulario.html'], (req, res) =>
 // Painel de coleção completo.
 app.get(['/colecao', '/painel-colecao', '/painel_colecao.html'], (req, res) =>
   renderView(res, 'painel_colecao.html', {}));
+
+// Painel V27 POR REPRESENTANTE (M1): recorte segregado no servidor.
+// Representante abre o próprio; diretoria/gestão escolhe via ?rep= (picker sem parâmetro).
+function paginaAviso(res, titulo, msg, status = 200) {
+  res.status(status).type('html').send(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${titulo}</title></head>
+<body style="font-family:Inter,system-ui,sans-serif;background:#ECEDEF;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0">
+<div style="background:#fff;border-radius:20px;padding:36px 40px;max-width:460px;box-shadow:0 4px 20px rgba(0,0,0,.08)">
+<h2 style="margin:0 0 10px;color:#1f2937">${titulo}</h2><p style="color:#4b5563;line-height:1.5">${msg}</p>
+<a href="/" style="color:#2563EB;font-weight:600;text-decoration:none">← Voltar à plataforma</a></div></body></html>`);
+}
+
+app.get(['/meu-painel', '/painel-rep'], requireAuthPage, (req, res) => {
+  if (!painelDisponivel()) {
+    return paginaAviso(res, 'Painel indisponível',
+      'As fontes de dados do Painel V27 não estão instaladas neste servidor (data/painel_v27). Avise a administração.', 503);
+  }
+  let nome = null;
+  if (req.user.papel === 'representante') {
+    nome = resolveRepNome(req.user);
+    if (!nome) {
+      return paginaAviso(res, 'Painel em preparação',
+        'Sua representação ainda não tem dados consolidados no Painel V27 (preview comercial). Assim que a próxima carga entrar, seu painel aparece aqui automaticamente.');
+    }
+  } else if (isDiretoria(req.user)) {
+    nome = req.query.rep ? String(req.query.rep) : null;
+    if (!nome) {
+      const links = listRepsPainel()
+        .map((r) => `<li style="margin:6px 0"><a style="color:#2563EB;text-decoration:none;font-weight:600" href="/meu-painel?rep=${encodeURIComponent(r.full)}">${r.short}</a> <span style="color:#6b7280;font-size:.85rem">· ${r.full}</span></li>`)
+        .join('');
+      return res.type('html').send(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Painéis por representante</title></head>
+<body style="font-family:Inter,system-ui,sans-serif;background:#ECEDEF;margin:0;padding:40px">
+<div style="background:#fff;border-radius:20px;padding:32px 36px;max-width:640px;margin:0 auto;box-shadow:0 4px 20px rgba(0,0,0,.08)">
+<h2 style="margin:0 0 4px;color:#1f2937">Painel V27 por representante</h2>
+<p style="color:#6b7280;margin:0 0 16px">Visão da diretoria — escolha a representação:</p>
+<ul style="list-style:none;padding:0;margin:0;columns:1">${links}</ul>
+<p style="margin-top:18px"><a href="/" style="color:#2563EB;font-weight:600;text-decoration:none">← Voltar à plataforma</a></p></div></body></html>`);
+    }
+  } else {
+    return res.status(403).type('text').send('sem permissão');
+  }
+
+  const refresh = req.user.papel === 'admin' && req.query.refresh === '1';
+  let html;
+  try {
+    html = buildPainelRep(nome, { refresh });
+  } catch (e) {
+    console.error('[painel-rep] erro ao gerar painel:', e);
+    return paginaAviso(res, 'Erro ao gerar o painel',
+      'Não foi possível montar o painel agora. Tente novamente em instantes; se persistir, avise a administração.', 500);
+  }
+  if (!html) {
+    return paginaAviso(res, 'Sem dados no recorte',
+      'Não há registros do preview comercial V27 para essa representação.', 404);
+  }
+  res.type('html').send(html);
+});
 
 // Painel do projeto (restrito a admin).
 app.get(['/projeto', '/painel_projeto.html'], requireAuth, requireRole('admin'), (req, res) =>

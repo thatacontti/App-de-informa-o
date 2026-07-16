@@ -52,6 +52,21 @@ export function requireAuth(req, res, next) {
   }
 }
 
+// Variante para páginas HTML: sem sessão, redireciona ao login em vez de JSON.
+export function requireAuthPage(req, res, next) {
+  const token = req.cookies?.[COOKIE_NAME];
+  if (!token) return res.redirect('/');
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    const u = db.prepare('SELECT * FROM usuarios WHERE cod = ?').get(payload.cod);
+    if (!u) return res.redirect('/');
+    req.user = u;
+    next();
+  } catch {
+    return res.redirect('/');
+  }
+}
+
 // Middleware factory por papel.
 export function requireRole(...papeis) {
   return (req, res, next) => {

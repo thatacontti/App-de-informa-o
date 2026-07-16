@@ -61,15 +61,32 @@ Prévias publicadas (artefatos, dados de demonstração):
 
 ## 3. O QUE FALTA (milestones, em prioridade)
 
-### M1 · Painel rico POR REPRESENTANTE (o grande) — ver `apps/representantes/docs/` + doc v2.0 colada no histórico do PR
-Hoje `painel_colecao.html` é a versão **estratégica (base inteira)**. Falta gerar
-o mesmo painel **recortado por `NOME_REP`** (SSS por marca/UF, mapa de ataque
-Marca→Coordenado→SKU com foto/cobertura/gap, assertividade piso 400 peças, cards
-de produto com imagem) + benchmark nacional, servido segregado (cada rep abre o
-seu). Base: adaptar `painel_v27/build.py` para receber o payload por rep (seção 4
-do doc v2.0) e injetar as constantes `SKUS/CLIS/DD/SSSM/UFYOY/IMG` no template.
-**Confirmar com a usuária:** usar os dados de `painel_v27/` (fatiando por `NOME_REP`)
-ou consumir a API do EXCIA (seção 3 do doc) quando exposta.
+### M1 · Painel rico POR REPRESENTANTE — ✅ FEITO (16/07/2026)
+Implementado em `server/lib/painelRep.js` + rota `GET /meu-painel` (alias
+`/painel-rep`) em `server/index.js`:
+- **Segregação no servidor**: representante abre só o próprio recorte
+  (`?rep=` de outro é ignorado); diretoria/gestor/marketing têm picker e `?rep=`.
+- Fonte: `data/painel_v27/` (cópia app-local de d_v12/sku_final/v26m/cidade_perfil
+  + template/styles/dashboard_produto, para o build Docker) com fallback para
+  `painel_v27/` na raiz. Trocar para a API do Excia quando exposta = reescrever
+  só o `load()` de `painelRep.js`.
+- Payload por rep: `D` filtrado por `NOME_REP` (custos `ct/cu` zerados — não
+  vazam ao cliente), `IMG` só dos SKUs usados, `V26M`/`CIDADE_PERFIL` subset,
+  `UFYOY` recalculado por rep. Mapeamento `usuarios.rz → NOME_REP` por
+  normalização de razão social (7 RCs sem dados V27 ganham aviso amigável).
+- Seções novas server-side: **Benchmark Nacional** (SSS por marca/UF rep ×
+  nacional), **Assertividade piso 400 pç** (campeões nacionais × gaps com foto)
+  e **Cartela por Coordenado** (Marca→Coordenado→SKU com cobertura/gap);
+  o mapa dinâmico original continua respondendo aos filtros.
+- Imagens deduplicadas: seções estáticas usam `<img data-sku>` hidratado do
+  `IMG` (página ~6 MB; cache LRU de 8 painéis em memória).
+- Corrigido de passagem: stub `#ins-b` (o dashboard escrevia num id inexistente
+  e o `render()` morria no fim — o MESMO bug segue latente em
+  `views/painel_colecao.html`, onde hoje é inofensivo/protetor do mapa estático).
+- `better-sqlite3` atualizado p/ ^12 (prebuilds Node 22/24; a 11.x não compila
+  sem VS Build Tools no Windows).
+- Validação: números do painel B2B conferidos contra cálculo independente de
+  `d_v12.json` (peças, SSS macro/marca/UF, assertividade) — tudo bate.
 
 **Golden Rules inegociáveis (doc v2.0 §2) — aplicar em qualquer cálculo:**
 - SSS só no perfil **Moda** (`DESCRICAO='COLEÇÃO'`); isolar ESPECIAL(atacado)/SALDO.
@@ -131,5 +148,5 @@ painel_v27/               fonte do painel estratégico/RPN (build.py + dados)
 scripts/excia-agent.mjs   sync EXCIA→Base44 (referência do contrato Excia)
 ```
 
-Ponto de partida sugerido para a próxima sessão: **M1** (painel por representante),
-lendo antes `apps/representantes/docs/TOOLKIT_SELLOUT_GRUPOCATARINA.md` e o doc v2.0.
+Ponto de partida sugerido para a próxima sessão: **M2** (pedir a arte correta do
+logo à usuária) e **M3** (go-live no VPS em modo copiloto) — o M1 já está no branch.
