@@ -373,13 +373,23 @@ async function entrar(){
   REP=__resp.rep;
   CART=Object.entries(DB).map(([c,d])=>({cod:c,...d,v26:tot(d,'V26'),v27:tot(d,'V27')}));
   try{const __cr=await fetch('/api/colecao');if(__cr.ok){const __pr=await __cr.json();for(const k in PROD)delete PROD[k];Object.assign(PROD,__pr);if(__pr.dia)DIA=__pr.dia;if(__pr.totDias)TOTDIAS=__pr.totDias;}}catch(e){}
+  if(REP.precisa_trocar_senha){const ok=await trocarSenha();if(!ok){err.textContent='É necessário definir uma nova senha para continuar.';err.style.display='block';return}}
   document.getElementById('pillRep').innerHTML=REP.nome+' · '+REP.reg+' <span style="color:var(--mut)">▾</span>';
   document.getElementById('login').style.display='none';
   document.getElementById('app').style.display='block';
   renderPainel();renderCarteira();renderDocs();renderPosts();renderColecao();
   document.getElementById('fCarga').textContent='Dados: carga Excel/ERP · histórico por coleção e marca';
 }
-function sair(){location.reload()}
+function sair(){fetch('/api/logout',{method:'POST'}).finally(()=>location.reload())}
+let __pwResolve=null;
+function trocarSenha(){document.getElementById('pwmodal').style.display='flex';document.getElementById('pwNova').value='';document.getElementById('pwConf').value='';document.getElementById('pwErr').style.display='none';setTimeout(()=>document.getElementById('pwNova').focus(),50);return new Promise(r=>{__pwResolve=r})}
+async function confirmarSenha(){
+  const a=document.getElementById('pwNova').value,b=document.getElementById('pwConf').value,e=document.getElementById('pwErr');
+  if(a.length<4){e.textContent='Mínimo de 4 caracteres.';e.style.display='block';return}
+  if(a!==b){e.textContent='As senhas não conferem.';e.style.display='block';return}
+  try{const r=await fetch('/api/senha',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({nova:a})});const d=await r.json();if(!r.ok){e.textContent=d.error||'Falha ao salvar.';e.style.display='block';return}}catch(x){e.textContent='Erro de conexão.';e.style.display='block';return}
+  document.getElementById('pwmodal').style.display='none';if(__pwResolve){__pwResolve(true);__pwResolve=null}
+}
 function ir(v){
   document.querySelectorAll('.nv').forEach(t=>t.classList.toggle('act',t.dataset.v===v));
   document.querySelectorAll('.view').forEach(x=>x.classList.toggle('act',x.id==='v-'+v));
@@ -554,5 +564,17 @@ function renderPosts(){
    `<div class="post"><div class="ic" style="background:${bg[cl]}">${ic}</div><div><div class="meta">${m}</div><h4>${t}</h4><p>${p}</p></div></div>`).join('');
 }
 </script>
+<div id="pwmodal" style="display:none;position:fixed;inset:0;background:rgba(16,24,40,.45);align-items:center;justify-content:center;z-index:80;padding:20px">
+ <div class="lcard" style="max-width:420px">
+   <h1 style="font-size:1.3rem">Definir nova senha</h1>
+   <p>Primeiro acesso: escolha uma senha pessoal (mínimo 4 caracteres). Você a usará nos próximos logins.</p>
+   <label class="f">Nova senha</label>
+   <input type="password" id="pwNova" autocomplete="new-password">
+   <label class="f">Repita a nova senha</label>
+   <input type="password" id="pwConf" autocomplete="new-password" onkeydown="if(event.key==='Enter')confirmarSenha()">
+   <button class="btn w" onclick="confirmarSenha()">Salvar e entrar</button>
+   <div class="lerr" id="pwErr"></div>
+ </div>
+</div>
 </body>
 </html>

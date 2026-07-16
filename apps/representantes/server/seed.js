@@ -49,11 +49,13 @@ export function seed({ reset = false } = {}) {
     }
 
     // Diretoria / Carteira Casa (admin, visão total).
+    // Administradora do site: Thatiane Marques (configurável por env).
     upUser.run({
-      cod: '0', nome: 'Diretoria', rz: 'Grupo Catarina',
-      email: 'diretoria@grupocatarina.com',
+      cod: '0', nome: process.env.ADMIN_NOME || 'Thatiane Marques',
+      rz: 'Grupo Catarina',
+      email: process.env.ADMIN_EMAIL || 'thatiane.marques@grupocatarina.com',
       senha_hash: bcrypt.hashSync('0000', 10),
-      papel: 'admin', ufs: '["BR"]', regiao: 'Brasil', macro: 'Nacional',
+      papel: 'admin', ufs: '["BR"]', regiao: 'Diretoria', macro: 'Nacional',
     });
     // Usuários de aprovação (fluxo do toolkit §7). Senha inicial = cod.
     upUser.run({

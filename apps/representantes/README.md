@@ -56,9 +56,13 @@ Acessos de teste (senha inicial = Cód RC; troca obrigatória no 1º acesso):
 |---|---|---|---|
 | Representante (Bruno · SP) | `81` | `81` | só a carteira dele (102 clientes) |
 | Representante (Rony) | `1` | `1` | só a carteira dele |
-| Diretoria / Carteira Casa | `0` | `0000` | tudo (admin) |
+| Administradora · Thatiane Marques (`thatiane.marques@grupocatarina.com`) | `0` | `0000` | tudo (admin) |
 | Gestor comercial (aprovações) | `gestor` | `gestor` | fila de aprovação |
 | Head marketing (aprovações) | `marketing` | `marketing` | fila de aprovação |
+
+A troca de senha no 1º acesso é **obrigatória** (modal na tela de login).
+A administradora do site (recebe cópia das notificações) é definida por
+`ADMIN_EMAIL` / `ADMIN_NOME` no `.env` (padrão: Thatiane Marques).
 
 ## Páginas
 
@@ -80,6 +84,13 @@ Acessos de teste (senha inicial = Cód RC; troca obrigatória no 1º acesso):
 `GET /api/excia/status` · `POST /api/excia/sync` (admin) · `GET /api/manuais`.
 
 **Segregação** é feita no servidor (`WHERE rep_cod = ?`), nunca no cliente.
+
+## Notificações de aprovação
+
+O fluxo dispara e-mails via SMTP (`server/lib/mailer.js`): nova prescrição →
+gestor comercial + administradora; ao avançar → marketing/shopping; ao
+aprovar/reprovar/ajustar → representante + administradora. Sem `SMTP_*`
+configurado, as mensagens são **logadas no console** (útil no piloto).
 
 ## Integração Excia (ERP)
 

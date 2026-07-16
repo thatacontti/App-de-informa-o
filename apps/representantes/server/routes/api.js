@@ -13,6 +13,15 @@ import {
 } from '../auth.js';
 import { prescrever, alcadaPorValor } from '../lib/motor.js';
 import { getColecaoStatus, pingExcia, syncLive, EXCIA_MODE } from '../lib/excia.js';
+import { notify, ADMIN_EMAIL } from '../lib/mailer.js';
+
+const APP_URL = process.env.APP_URL || 'https://representantes.grupocatarina.com';
+const fmtBR = (v) => 'R$ ' + Math.round(v || 0).toLocaleString('pt-BR');
+const emailByPapel = (papel) => {
+  const r = db.prepare('SELECT email FROM usuarios WHERE papel=? AND email!=? LIMIT 1').get(papel, '');
+  return r?.email || null;
+};
+const emailByCod = (cod) => db.prepare('SELECT email FROM usuarios WHERE cod=?').get(String(cod))?.email || null;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, '..', '..', 'public', 'uploads');
@@ -198,6 +207,16 @@ api.post('/prescricao', requireAuth, (req, res) => {
   });
   tx();
 
+  // notifica o gestor comercial (1ª instância) + admin — não bloqueia a resposta
+  notify({
+    to: [emailByPapel('gestor'), ADMIN_EMAIL],
+    subject: `[GC Sellout] Nova prescrição ${protocolo} · aprovação comercial`,
+    text: `Nova prescrição registrada pelo representante ${req.user.nome}.\n\n` +
+      `Cliente: ${cli.nome} (${codcli})\nMotivo: ${motivo}\n` +
+      `Investimento: ${fmtBR(out.invMin)} a ${fmtBR(out.invMax)}\n` +
+      `Alçada: ${out.alcada}\n\nFila de aprovação: ${APP_URL}/aprovacoes`,
+  });
+
   res.json({
     protocolo, ...out, codcli, fantasia: fantasia || '',
     fat: cli.fat24m, curva: cli.curva, tend: cli.tendencia, tipologia,
@@ -273,7 +292,30 @@ api.post('/aprovacoes/:protocolo', requireAuth, requireRole('gestor', 'marketing
     db.prepare('UPDATE acoes SET status=? WHERE protocolo=?').run(novo, req.params.protocolo);
   });
   tx();
-  res.json({ ok: true, protocolo: req.params.protocolo, status: novo });
+
+  // notificações do fluxo (não bloqueiam a resposta)
+  const proto = req.params.protocolo;
+  const repCod = db.prepare('SELECT rep_cod FROM diagnosticos WHERE protocolo=?').get(proto)?.rep_cod;
+  const repMail = emailByCod(repCod);
+  const link = `${APP_URL}/aprovacoes`;
+  if (novo === 'em_aprovacao_marketing') {
+    notify({ to: [emailByPapel('marketing'), ADMIN_EMAIL], subject: `[GC Sellout] ${proto} · aprovação marketing`,
+      text: `A prescrição ${proto} foi aprovada no comercial e aguarda o marketing.\n${link}` });
+  } else if (novo === 'em_aprovacao_shopping') {
+    notify({ to: ADMIN_EMAIL, subject: `[GC Sellout] ${proto} · anuência do shopping (P3)`,
+      text: `A prescrição ${proto} aguarda a anuência da administração do shopping.\n${link}` });
+  } else if (novo === 'aguardando_termo') {
+    notify({ to: [repMail, ADMIN_EMAIL], subject: `[GC Sellout] ${proto} · aprovada · providenciar termo`,
+      text: `A prescrição ${proto} foi aprovada. Providencie o termo de contrapartida do lojista; sem termo, o kit não é enviado.` });
+  } else if (novo === 'reprovada') {
+    notify({ to: [repMail, ADMIN_EMAIL], subject: `[GC Sellout] ${proto} · reprovada`,
+      text: `A prescrição ${proto} foi reprovada por ${req.user.nome}.\nJustificativa: ${justificativa}` });
+  } else if (novo === 'em_ajuste') {
+    notify({ to: [repMail, ADMIN_EMAIL], subject: `[GC Sellout] ${proto} · ajuste solicitado`,
+      text: `A prescrição ${proto} precisa de ajustes (${req.user.nome}).\nOrientação: ${justificativa || '—'}` });
+  }
+
+  res.json({ ok: true, protocolo: proto, status: novo });
 });
 
 // ---------- histórico de cargas (rodapé) ----------
