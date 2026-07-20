@@ -1,10 +1,13 @@
 # ADAPTADO para o VPS grupocatarina-vps: o portal serve em HTTP interno
 # (porta 80 do container). O HTTPS e o dominio budget.grupocatarina.com
 # sao tratados pelo Nginx Proxy Manager, que encaminha para sgo-portal:80.
+#
+# Portal: acesso LIVRE (sem senha), por opcao do usuario.
+# Adminer (/adminer): continua protegido por senha, pois expoe o banco.
 :80 {
 	encode gzip
 
-	# Gestor do banco de dados (Adminer), protegido pela senha do portal
+	# Gestor do banco de dados (Adminer), protegido por senha (admin / SENHA_PORTAL_HASH)
 	handle_path /adminer* {
 		basic_auth {
 			admin {$SENHA_PORTAL_HASH}
@@ -17,11 +20,8 @@
 	# 	reverse_proxy api:3000
 	# }
 
-	# Portal (o sistema)
+	# Portal (o sistema) - acesso livre, sem senha
 	handle {
-		basic_auth {
-			admin {$SENHA_PORTAL_HASH}
-		}
 		root * /srv
 		try_files {path} /index.html
 		file_server
