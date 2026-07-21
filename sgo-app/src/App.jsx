@@ -234,9 +234,9 @@ function VisorAnexo({ anexo, onClose }) {
    CÁLCULOS
 ============================================================ */
 function calcular(db, ex, ccFiltro = null) {
-  const meses = Array.from({ length: 12 }, () => ({ orcado: 0, comprometido: 0, realizado: 0 }));
+  const meses = Array.from({ length: 12 }, () => ({ orcado: 0, comprometido: 0, realizado: 0, consumido: 0 }));
   const porCC = {}; const porCat = {}; const porForn = {}; const porAcao = {};
-  const ini = () => ({ orcado: 0, comprometido: 0, realizado: 0, meses: Array.from({ length: 12 }, () => ({ orcado: 0, comprometido: 0, realizado: 0 })) });
+  const ini = () => ({ orcado: 0, comprometido: 0, realizado: 0, consumido: 0, meses: Array.from({ length: 12 }, () => ({ orcado: 0, comprometido: 0, realizado: 0, consumido: 0 })) });
   db.orcamento.forEach((l) => {
     if (l.exercicio !== ex || l.status === "cancelado") return;
     if (ccFiltro && l.ccId !== ccFiltro) return;
@@ -252,20 +252,23 @@ function calcular(db, ex, ccFiltro = null) {
     if (x.exercicio !== ex || x.status !== "ativo") return;
     if (ccFiltro && x.ccId !== ccFiltro) return;
     const c = Number(x.valorComprometido) || 0, r = Number(x.valorRealizado) || 0;
+    // Dentro de um mesmo lancamento, o realizado e a concretizacao do comprometido:
+    // o consumo do orcamento conta UMA vez so (o maior dos dois), nunca a soma.
+    const g = Math.max(c, r);
     const mm = Math.min(Math.max(x.mes || 1, 1), 12);
-    meses[mm - 1].comprometido += c; meses[mm - 1].realizado += r;
-    const cc = (porCC[x.ccId] = porCC[x.ccId] || ini()); cc.comprometido += c; cc.realizado += r;
-    cc.meses[mm - 1].comprometido += c; cc.meses[mm - 1].realizado += r;
-    const ct = (porCat[x.catId] = porCat[x.catId] || ini()); ct.comprometido += c; ct.realizado += r;
-    if (x.fornId) { const f = (porForn[x.fornId] = porForn[x.fornId] || ini()); f.comprometido += c; f.realizado += r; }
-    if (x.acaoId) { const a = (porAcao[x.acaoId] = porAcao[x.acaoId] || ini()); a.comprometido += c; a.realizado += r; a.meses[mm - 1].comprometido += c; a.meses[mm - 1].realizado += r; }
+    meses[mm - 1].comprometido += c; meses[mm - 1].realizado += r; meses[mm - 1].consumido += g;
+    const cc = (porCC[x.ccId] = porCC[x.ccId] || ini()); cc.comprometido += c; cc.realizado += r; cc.consumido += g;
+    cc.meses[mm - 1].comprometido += c; cc.meses[mm - 1].realizado += r; cc.meses[mm - 1].consumido += g;
+    const ct = (porCat[x.catId] = porCat[x.catId] || ini()); ct.comprometido += c; ct.realizado += r; ct.consumido += g;
+    if (x.fornId) { const f = (porForn[x.fornId] = porForn[x.fornId] || ini()); f.comprometido += c; f.realizado += r; f.consumido += g; }
+    if (x.acaoId) { const a = (porAcao[x.acaoId] = porAcao[x.acaoId] || ini()); a.comprometido += c; a.realizado += r; a.consumido += g; a.meses[mm - 1].comprometido += c; a.meses[mm - 1].realizado += r; a.meses[mm - 1].consumido += g; }
   });
-  const tot = meses.reduce((acc, mm) => ({ orcado: acc.orcado + mm.orcado, comprometido: acc.comprometido + mm.comprometido, realizado: acc.realizado + mm.realizado }), { orcado: 0, comprometido: 0, realizado: 0 });
-  tot.saldo = tot.orcado - tot.comprometido - tot.realizado;
-  tot.execPct = tot.orcado > 0 ? ((tot.comprometido + tot.realizado) / tot.orcado) * 100 : 0;
+  const tot = meses.reduce((acc, mm) => ({ orcado: acc.orcado + mm.orcado, comprometido: acc.comprometido + mm.comprometido, realizado: acc.realizado + mm.realizado, consumido: acc.consumido + mm.consumido }), { orcado: 0, comprometido: 0, realizado: 0, consumido: 0 });
+  tot.saldo = tot.orcado - tot.consumido;
+  tot.execPct = tot.orcado > 0 ? (tot.consumido / tot.orcado) * 100 : 0;
   return { meses, tot, porCC, porCat, porForn, porAcao };
 }
-function consumoPct(d) { return d.orcado > 0 ? ((d.comprometido + d.realizado) / d.orcado) * 100 : (d.comprometido + d.realizado > 0 ? Infinity : 0); }
+function consumoPct(d) { const g = d.consumido != null ? d.consumido : Math.max(d.comprometido || 0, d.realizado || 0); return d.orcado > 0 ? (g / d.orcado) * 100 : (g > 0 ? Infinity : 0); }
 function corStatus(p, cfg) {
   if (!isFinite(p) || p > 100) return { bg: C.redBg, fg: C.red, label: "Excedido" };
   if (p >= cfg.risco) return { bg: C.orangeBg, fg: C.orange, label: "Risco" };
@@ -351,8 +354,8 @@ function Dashboard({ db }) {
 
   const dadosMes = R.meses.map((mm, i) => ({ mes: MESES[i], Orçado: mm.orcado, Comprometido: mm.comprometido, Realizado: mm.realizado }));
   const dadosCC = Object.entries(R.porCC).map(([id, d]) => ({ id, nome: ccNome(id), ...d, pct: consumoPct(d) })).sort((a, b) => b.orcado - a.orcado);
-  const dadosCat = Object.entries(R.porCat).map(([id, d]) => ({ nome: catNome(id), valor: d.realizado + d.comprometido })).filter((d) => d.valor > 0).sort((a, b) => b.valor - a.valor);
-  const dadosForn = Object.entries(R.porForn).map(([id, d]) => ({ nome: fornNome(id), valor: d.realizado + d.comprometido })).sort((a, b) => b.valor - a.valor).slice(0, 6);
+  const dadosCat = Object.entries(R.porCat).map(([id, d]) => ({ nome: catNome(id), valor: d.consumido })).filter((d) => d.valor > 0).sort((a, b) => b.valor - a.valor);
+  const dadosForn = Object.entries(R.porForn).map(([id, d]) => ({ nome: fornNome(id), valor: d.consumido })).sort((a, b) => b.valor - a.valor).slice(0, 6);
   const totForn = dadosForn.reduce((s, f) => s + f.valor, 0);
   const catCores = [C.navy, C.blue, C.green, C.yellow, C.orange, C.gray, "#7A5EA8", "#3E8FA3"];
 
@@ -368,12 +371,12 @@ function Dashboard({ db }) {
     const p = consumoPct(d);
     if (d.orcado > 0 && p > 100) {
       const a = db.acoes.find((x) => x.id === id);
-      alertas.push({ nivel: "red", texto: `Ação ${a?.nome || id}: consumo de ${pct(p)} sobre o orçado (${fmt(d.comprometido + d.realizado)} de ${fmt(d.orcado)}).` });
+      alertas.push({ nivel: "red", texto: `Ação ${a?.nome || id}: consumo de ${pct(p)} sobre o orçado (${fmt(d.consumido)} de ${fmt(d.orcado)}).` });
     }
   });
-  if (totForn > 0 && R.tot.comprometido + R.tot.realizado > 0) {
+  if (totForn > 0 && R.tot.consumido > 0) {
     const maior = dadosForn[0];
-    const share = (maior.valor / (R.tot.comprometido + R.tot.realizado)) * 100;
+    const share = (maior.valor / R.tot.consumido) * 100;
     if (share >= 30) alertas.push({ nivel: "yellow", texto: `Concentração: ${maior.nome} representa ${pct(share)} do total comprometido e realizado.` });
   }
 
@@ -384,7 +387,7 @@ function Dashboard({ db }) {
     if (top) leituras.push({ tipo: "Dado", texto: `O centro de custo ${top.nome} concentra ${pct((top.orcado / R.tot.orcado) * 100)} do orçamento do exercício.` });
     const mesAtual = Math.min(new Date().getMonth() + 1, 12);
     const orcYtd = R.meses.slice(0, mesAtual).reduce((s, mm) => s + mm.orcado, 0);
-    const realYtd = R.meses.slice(0, mesAtual).reduce((s, mm) => s + mm.realizado + mm.comprometido, 0);
+    const realYtd = R.meses.slice(0, mesAtual).reduce((s, mm) => s + mm.consumido, 0);
     if (orcYtd > 0) {
       const desv = ((realYtd - orcYtd) / orcYtd) * 100;
       leituras.push({ tipo: "Dado", texto: `Até ${MESES_FULL[mesAtual - 1].toLowerCase()}, o consumo acumulado está ${pct(Math.abs(desv))} ${desv >= 0 ? "acima" : "abaixo"} do planejado para o período (${fmt(realYtd)} contra ${fmt(orcYtd)}).` });
@@ -487,7 +490,7 @@ function Dashboard({ db }) {
                     <div key={c.id}>
                       <div className="flex items-center justify-between text-xs mb-1">
                         <span className="font-semibold" style={{ color: C.ink }}>{c.nome}</span>
-                        <span className="tabular-nums" style={{ color: C.inkSoft }}>{fmt(c.comprometido + c.realizado)} de {fmt(c.orcado)} <b style={{ color: st.fg }}>{isFinite(c.pct) ? pct(c.pct) : "s/ orç."}</b></span>
+                        <span className="tabular-nums" style={{ color: C.inkSoft }}>{fmt(c.consumido)} de {fmt(c.orcado)} <b style={{ color: st.fg }}>{isFinite(c.pct) ? pct(c.pct) : "s/ orç."}</b></span>
                       </div>
                       <div className="h-2.5 rounded-full overflow-hidden" style={{ background: C.grayBg }}>
                         <div className="h-full rounded-full" style={{ width: `${w}%`, background: st.fg }} />
@@ -506,7 +509,7 @@ function Dashboard({ db }) {
                       <tr key={f.nome} style={{ borderBottom: i < dadosForn.length - 1 ? `1px solid ${C.line}` : "none" }}>
                         <td className="py-2 font-medium" style={{ color: C.ink }}>{f.nome}</td>
                         <td className="py-2 text-right tabular-nums" style={{ color: C.inkSoft }}>{fmt(f.valor)}</td>
-                        <td className="py-2 text-right tabular-nums w-16 font-semibold" style={{ color: C.navy }}>{pct((f.valor / (R.tot.comprometido + R.tot.realizado)) * 100)}</td>
+                        <td className="py-2 text-right tabular-nums w-16 font-semibold" style={{ color: C.navy }}>{pct((f.valor / R.tot.consumido) * 100)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -531,7 +534,7 @@ function Dashboard({ db }) {
                     <tr key={c.id}>
                       <td className="pr-2 font-semibold whitespace-nowrap" style={{ color: C.ink }}>{c.nome}</td>
                       {c.meses.map((mm, i) => {
-                        const gasto = mm.comprometido + mm.realizado;
+                        const gasto = mm.consumido;
                         const p = mm.orcado > 0 ? (gasto / mm.orcado) * 100 : (gasto > 0 ? Infinity : null);
                         let bg = C.grayBg, fg = C.inkFaint, txt = "-";
                         if (p !== null) { const st = corStatus(p, cfg); bg = st.bg; fg = st.fg; txt = isFinite(p) ? pct(p) : "s/orç"; }
@@ -964,8 +967,8 @@ function LancForm({ db, lanc, onSave, onClose }) {
     // orçamento insuficiente no mês
     const R = calcular(db, db.exercicio, f.ccId);
     const mm = R.meses[f.mes - 1];
-    const jaLancado = lanc ? (Number(lanc.valorComprometido) || 0) + (Number(lanc.valorRealizado) || 0) : 0;
-    const novoTotal = mm.comprometido + mm.realizado - jaLancado + c + r;
+    const jaLancado = lanc ? Math.max(Number(lanc.valorComprometido) || 0, Number(lanc.valorRealizado) || 0) : 0;
+    const novoTotal = mm.consumido - jaLancado + Math.max(c, r);
     if (novoTotal > mm.orcado) {
       av.push(`Orçamento insuficiente em ${MESES_FULL[f.mes - 1]} para ${cc.nome}: orçado ${fmt(mm.orcado)}, total após o lançamento ${fmt(novoTotal)}`);
     }
@@ -1111,7 +1114,7 @@ function Acoes({ db, setDb }) {
                     </td>
                     {Array.from({ length: 12 }, (_, i) => {
                       const mm = d ? d.meses[i] : null;
-                      const orc = mm ? mm.orcado : 0, gasto = mm ? mm.comprometido + mm.realizado : 0;
+                      const orc = mm ? mm.orcado : 0, gasto = mm ? mm.consumido : 0;
                       const ativo = orc > 0 || gasto > 0;
                       let bg = "transparent";
                       if (ativo) {
@@ -1131,7 +1134,7 @@ function Acoes({ db, setDb }) {
                     })}
                     <td className="px-3 py-2 text-right whitespace-nowrap">
                       <div className="tabular-nums" style={{ color: C.navy }}>Previsto: <b>{fmt(d ? d.orcado : 0)}</b></div>
-                      <div className="tabular-nums mb-1" style={{ color: C.green }}>Gasto: <b>{fmt(d ? d.comprometido + d.realizado : 0)}</b></div>
+                      <div className="tabular-nums mb-1" style={{ color: C.green }}>Gasto: <b>{fmt(d ? d.consumido : 0)}</b></div>
                       <div className="flex items-center gap-1.5 justify-end">
                         <Chip text={st.label} bg={st.bg} fg={st.fg} />
                         <Btn small kind="ghost" onClick={(e) => { e.stopPropagation(); setFormPrev(acao); }}>Definir previsto</Btn>
@@ -1148,7 +1151,7 @@ function Acoes({ db, setDb }) {
       {detalhe && (() => {
         const d = R.porAcao[detalhe.id] || { orcado: 0, comprometido: 0, realizado: 0, meses: Array.from({ length: 12 }, () => ({ orcado: 0, comprometido: 0, realizado: 0 })) };
         const lancs = db.lancamentos.filter((x) => x.acaoId === detalhe.id && x.exercicio === ex && x.status === "ativo");
-        const saldo = d.orcado - d.comprometido - d.realizado;
+        const saldo = d.orcado - d.consumido;
         return (
           <Modal title={`${detalhe.codigo} - ${detalhe.nome}`} onClose={() => setDetalhe(null)} wide>
             <p className="text-sm mb-1" style={{ color: C.inkSoft }}>{detalhe.objetivo || "Sem objetivo cadastrado."}</p>
