@@ -7,7 +7,7 @@ import {
 import {
   LayoutDashboard, ListPlus, CalendarRange, Upload, FolderCog, Wallet,
   Plus, Pencil, Copy, Ban, X, Check, AlertTriangle, ChevronRight,
-  Trash2, RotateCcw, FileSpreadsheet, Filter, Search, Info, History, Paperclip,
+  Trash2, RotateCcw, FileSpreadsheet, Filter, Search, Info, History, Paperclip, Camera,
 } from "lucide-react";
 
 /* ============================================================
@@ -933,19 +933,39 @@ function LancForm({ db, lanc, onSave, onClose }) {
   const [anexoMsg, setAnexoMsg] = useState("");
   const [visor, setVisor] = useState(null);
   const anexoRef = useRef(null);
+  const cameraRef = useRef(null);
   const cat = db.categorias.find((c) => c.id === f.catId);
 
   const adicionarAnexo = (file) => {
     if (!file) return;
-    if (file.size > 4 * 1024 * 1024) { setAnexoMsg(`O arquivo "${file.name}" passa de 4 MB. Comprima o PDF antes de anexar.`); return; }
-    const reader = new FileReader();
-    reader.onload = async (e) => {
+    const ehImagem = (file.type || "").startsWith("image/");
+    if (!ehImagem && file.size > 4 * 1024 * 1024) { setAnexoMsg(`O arquivo "${file.name}" passa de 4 MB. Comprima o PDF antes de anexar.`); return; }
+    const gravar = async (dataUrl, tipo, nome) => {
+      const kb = Math.max(1, Math.round((dataUrl.length * 3 / 4) / 1024));
+      if (kb > 4096) { setAnexoMsg(`A imagem "${nome}" ficou maior que 4 MB mesmo comprimida. Tente uma foto de menor resolução.`); return; }
       const id = uid();
-      const ok = await salvarAnexoStorage(id, e.target.result);
+      const ok = await salvarAnexoStorage(id, dataUrl);
       if (!ok) { setAnexoMsg("Não foi possível gravar o anexo no armazenamento."); return; }
       setAnexoMsg("");
-      setF((prev) => ({ ...prev, anexos: [...(prev.anexos || []), { id, nome: file.name, tipo: file.type || "application/pdf", kb: Math.max(1, Math.round(file.size / 1024)) }] }));
+      setF((prev) => ({ ...prev, anexos: [...(prev.anexos || []), { id, nome, tipo, kb }] }));
     };
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (!ehImagem) { gravar(e.target.result, file.type || "application/pdf", file.name); return; }
+      // Foto: redimensiona (max 1600px) e comprime em JPEG para nao estourar o armazenamento
+      const img = new Image();
+      img.onload = () => {
+        const max = 1600; let w = img.width, h = img.height;
+        if (w > max || h > max) { const s = Math.min(max / w, max / h); w = Math.round(w * s); h = Math.round(h * s); }
+        const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+        cv.getContext("2d").drawImage(img, 0, 0, w, h);
+        const nome = /\.(jpe?g|png|webp)$/i.test(file.name) ? file.name : (file.name.replace(/\.[^.]*$/, "") || "foto") + ".jpg";
+        gravar(cv.toDataURL("image/jpeg", 0.72), "image/jpeg", nome);
+      };
+      img.onerror = () => setAnexoMsg("Não foi possível ler a imagem.");
+      img.src = e.target.result;
+    };
+    reader.onerror = () => setAnexoMsg("Não foi possível ler o arquivo.");
     reader.readAsDataURL(file);
   };
   const removerAnexo = (a) => {
@@ -1034,8 +1054,12 @@ function LancForm({ db, lanc, onSave, onClose }) {
       <div className="mt-4 rounded-xl p-4" style={{ background: C.bg, border: `1px solid ${C.line}` }}>
         <div className="flex items-center justify-between mb-2 gap-2">
           <p className="text-xs font-bold" style={{ color: C.ink }}>Anexos (nota fiscal, comprovante, contrato)</p>
-          <Btn small kind="ghost" onClick={() => anexoRef.current?.click()}><Paperclip size={13} /> Anexar PDF ou imagem</Btn>
+          <div className="flex gap-2">
+            <Btn small kind="ghost" onClick={() => cameraRef.current?.click()}><Camera size={13} /> Tirar foto</Btn>
+            <Btn small kind="ghost" onClick={() => anexoRef.current?.click()}><Paperclip size={13} /> Anexar PDF ou imagem</Btn>
+          </div>
           <input ref={anexoRef} type="file" accept=".pdf,image/*" className="hidden" onChange={(e) => { adicionarAnexo(e.target.files[0]); e.target.value = ""; }} />
+          <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { adicionarAnexo(e.target.files[0]); e.target.value = ""; }} />
         </div>
         {(f.anexos || []).length === 0 ? <p className="text-xs" style={{ color: C.inkFaint }}>Nenhum arquivo anexado. Limite de 4 MB por arquivo.</p> : (
           <div className="flex flex-col gap-1.5">
