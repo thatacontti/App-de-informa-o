@@ -105,10 +105,23 @@ correta (SVG/PNG horizontal, fundo transparente) e re-embutir em login + topo.
 (No topo já se trocou o monograma vertical pela horizontal — commit `1bcd038` —
 mas o asset horizontal ainda é o invertido.)
 
-### M3 · Go-live no VPS Hostinger (operacional, guiar a usuária)
-`provision-vps.sh` → site em HTTP no IP; passar IP à TI para o registro A no
-GoDaddy; `enable-https.sh` após o DNS propagar. Guia não-técnico em `GUIA_PASSO_A_PASSO.md`.
-A usuária NÃO é técnica e fará manualmente em modo copiloto; a TI (Anderson) só cria o DNS.
+### M3 · Go-live no VPS Hostinger — ✅ FEITO (21/07/2026)
+**https://representantes.grupocatarina.com no ar.** O plano original (VPS
+dedicado + nginx próprio via `deploy/representantes/`) NÃO foi usado: o app
+subiu no VPS já existente do grupo (`srv1827994` · 179.197.73.36, o mesmo do
+PLM/diretoria), onde as portas 80/443 são do Nginx Proxy Manager:
+- Fonte em `/root/grupocatarina-vps/representantes/` (+ `.env` de produção com
+  JWT_SECRET gerado, `COOKIE_SECURE=true`, `EXCIA_MODE=file`, SMTP vazio → M4).
+- Serviço `representantes` adicionado ao `docker-compose.override.yml` da stack
+  (rede `interna`, volumes `gcrep-db`/`gcrep-uploads`; backup do override em
+  `docker-compose.override.yml.bak_rep`).
+- NPM: cert Let's Encrypt id 10 (expira 19/10/2026, renovação automática) +
+  proxy host id 10 (`representantes.grupocatarina.com` → `representantes:8080`,
+  SSL forçado). DNS: registro A criado pela usuária na zona emailemnuvem.
+- Validado de fora: healthz 200, HTTP→HTTPS 301, login 81/81, /meu-painel 200.
+- Re-deploy: tar da pasta `apps/representantes` (sem node_modules/db/.env) →
+  extrair em `/root/grupocatarina-vps/representantes` → `docker compose build
+  representantes && docker compose up -d representantes`.
 
 ### M4 · E-mail e DNS de e-mail (SkyMail) — confirmar com TI
 Preencher `SMTP_PASS` no `.env` do VPS. Confirmar os **4 pontos** de
