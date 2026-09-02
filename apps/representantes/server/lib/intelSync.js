@@ -7,7 +7,34 @@
 // - Itens de pedido: SOB DEMANDA por cliente (BuscarPedido?numero=), com marca
 //   itens_ok no cabeçalho — 1 chamada por pedido, uma única vez.
 import { idb, getSync, setSync } from './intelDb.js';
-import { exciaGet, exciaTodasPaginas, dataExciaParaISO, isoParaDataExcia, exciaConfigurado } from './exciaClient.js';
+import { exciaGet, ExciaError, dataExciaParaISO, isoParaDataExcia, exciaConfigurado } from './exciaClient.js';
+
+// Paginação com RETOMADA: o progresso (última página gravada) fica em
+// sync_state("<chave>:pag"); se a EXCIA cair no meio (timeout em página
+// profunda é comum no Firebird), a próxima tentativa continua de onde parou.
+async function syncPaginado(chave, path, params, gravar) {
+  const prog = getSync(`${chave}:pag`);
+  let pagina = prog?.cursor ? Number(prog.cursor) + 1 : 1;
+  let total = 0;
+  for (; ; pagina++) {
+    let regs;
+    try {
+      regs = await exciaGet(path, { ...params, pagina });
+    } catch (e) {
+      if (e instanceof ExciaError && e.status === 400
+        && (pagina > 1 || /nenhum registro/i.test(e.message))) break; // fim documentado
+      throw e;
+    }
+    if (!Array.isArray(regs) || regs.length === 0) break;
+    gravar(regs);
+    total += regs.length;
+    setSync(`${chave}:pag`, { cursor: String(pagina), detalhe: `${total} registros nesta rodada` });
+    if (regs.length < 300) break; // página incompleta = última
+  }
+  // Concluiu: zera o progresso de página para a próxima carga começar do 1.
+  idb.prepare('DELETE FROM sync_state WHERE chave=?').run(`${chave}:pag`);
+  return total;
+}
 
 const DT_PED_INI = process.env.EXCIA_DT_PED || '01/01/2024';
 // EntidadeLista/ProdutoLista exigem o parâmetro `data` (doc: obrigatório).
@@ -44,7 +71,7 @@ const upCat = idb.prepare(`INSERT INTO catalogos (tipo, codigo, descricao, raw)
 export async function syncCatalogos() {
   for (const c of CATALOGOS) {
     try {
-      const n = await exciaTodasPaginas(c.path, c.params, async (regs) => {
+      const n = await syncPaginado(`catalogo:${c.tipo}`, c.path, c.params, (regs) => {
         const tx = idb.transaction(() => {
           for (const r of regs) {
             const codigo = String(r[c.cod] ?? r.codigo ?? '').trim();
@@ -98,7 +125,7 @@ export async function syncClientes() {
     data: incremental ? isoParaDataExcia(cursorMenosDias(st.cursor)) : DT_CADASTROS_INI,
     tipo_entidade: 'C',
   };
-  const n = await exciaTodasPaginas('EntidadeLista', params, async (regs) => gravarClientes(regs));
+  const n = await syncPaginado('clientes', 'EntidadeLista', params, gravarClientes);
   setSync('clientes', { cursor: hojeISO(), detalhe: `${n} registros (${incremental ? 'incremental' : 'completa'})` });
   return n;
 }
@@ -142,7 +169,7 @@ export async function syncProdutos() {
   const st = getSync('produtos');
   const incremental = Boolean(st?.cursor);
   const params = { data: incremental ? isoParaDataExcia(cursorMenosDias(st.cursor)) : DT_CADASTROS_INI };
-  const n = await exciaTodasPaginas('ProdutoLista', params, async (regs) => gravarProdutos(regs));
+  const n = await syncPaginado('produtos', 'ProdutoLista', params, gravarProdutos);
   setSync('produtos', { cursor: hojeISO(), detalhe: `${n} registros (${incremental ? 'incremental' : 'completa'})` });
   return n;
 }
@@ -186,7 +213,7 @@ export async function syncPedidos() {
   const params = st?.cursor
     ? { alteracao: isoParaDataExcia(cursorMenosDias(st.cursor)) }
     : { dt_emissao_ini: DT_PED_INI };
-  const n = await exciaTodasPaginas('PedidoLista', params, async (regs) => gravarPedidos(regs));
+  const n = await syncPaginado('pedidos', 'PedidoLista', params, gravarPedidos);
   setSync('pedidos', { cursor: hojeISO(), detalhe: `${n} registros (${params.alteracao ? 'incremental' : `completa desde ${DT_PED_INI}`})` });
   return n;
 }
@@ -269,9 +296,21 @@ export function agendarSync() {
   const temDados = idb.prepare('SELECT COUNT(*) c FROM pedidos').get().c > 0;
   if (!temDados) {
     console.log('[intel] banco analítico vazio — sync inicial em background...');
-    syncGeral()
-      .then((r) => console.log('[intel] sync inicial ok:', JSON.stringify(r)))
-      .catch((e) => console.error('[intel] sync inicial falhou:', e.message));
+    // Carga inicial com re-tentativas: a retomada por página garante que cada
+    // tentativa avança de onde a anterior parou.
+    (async () => {
+      for (let t = 1; t <= 8; t++) {
+        try {
+          const r = await syncGeral();
+          console.log('[intel] sync inicial ok:', JSON.stringify(r));
+          return;
+        } catch (e) {
+          console.error(`[intel] sync inicial falhou (tentativa ${t}/8): ${e.message} — retomando em 30s`);
+          await new Promise((res) => setTimeout(res, 30000));
+        }
+      }
+      console.error('[intel] sync inicial esgotou as tentativas — use POST /api/intel/sync');
+    })();
   }
   setInterval(() => {
     const h = new Date();
