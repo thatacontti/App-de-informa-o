@@ -93,8 +93,16 @@ svg text{font-family:inherit}
   <div class="busca">
     <div>
       <label>Código do Cliente</label>
-      <input id="codcli" placeholder="ex.: 14466 — ou digite o nome" autocomplete="off">
+      <input id="codcli" placeholder="ex.: 9032 — ou digite o nome" autocomplete="off">
       <div id="sug"></div>
+    </div>
+    <div>
+      <label>Temporada (filtro)</label>
+      <select id="selTemporada" onchange="if(CLI)analisar()" style="border:1.5px solid var(--line);border-radius:12px;padding:11px 14px;font-family:inherit;font-size:.95rem">
+        <option value="">Todas</option>
+        <option value="Verão">Verão</option>
+        <option value="Inverno">Inverno</option>
+      </select>
     </div>
     <button class="btn" id="btnAnalisar" onclick="analisar()">Analisar Cliente</button>
     <div style="flex:1"></div>
@@ -110,15 +118,22 @@ svg text{font-family:inherit}
         <div id="serie"></div><div id="kpisEvo" class="kpis" style="margin-top:10px"></div></div>
     </div>
 
-    <div class="card" style="margin-top:16px"><h2>🧬 Clusters do cliente <small>classificações independentes</small></h2>
-      <div class="chips" id="clusters"></div></div>
+    <div class="grid g2">
+      <div class="card"><h2>🏅 Perfil do cliente <small>pela linha histórica de coleções</small></h2>
+        <div id="perfilCli"></div>
+        <div style="margin-top:14px"><div style="font-size:.72rem;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Outras leituras</div>
+          <div class="chips" id="clusters"></div></div></div>
+      <div class="card"><h2>💰 Entrada · Médio · Premium <small>faixa por segmento (ano·coleção·marca·tipo·grade)</small></h2>
+        <div id="dnaTier"></div>
+        <div style="font-size:.7rem;color:var(--mut);margin-top:8px">A faixa é relativa ao segmento do produto — não um corte fixo de R$.</div></div>
+    </div>
 
     <div class="grid g3">
       <div class="card"><h2>Categoria & Grupo</h2><div id="dnaCat"></div></div>
       <div class="card"><h2>Marca & Linha</h2><div id="dnaMarca"></div></div>
       <div class="card"><h2>Família</h2><div id="dnaFam"></div></div>
       <div class="card"><h2>Tamanhos</h2><div id="dnaTam"></div></div>
-      <div class="card"><h2>Faixa de preço</h2><div id="dnaFaixa"></div></div>
+      <div class="card"><h2>Faixa de preço (R$)</h2><div id="dnaFaixa"></div></div>
       <div class="card"><h2>Cores</h2><div id="dnaCor"></div></div>
     </div>
 
@@ -195,12 +210,14 @@ document.addEventListener('click',e=>{if(!e.target.closest('.busca'))$('sug').st
 $('codcli').addEventListener('keydown',e=>{if(e.key==='Enter')analisar()});
 
 // ---- análise ----
+function temporada(){return $('selTemporada').value;}
 async function analisar(){
   const cod=$('codcli').value.trim().replace(/\D.*$/,'');
   if(!cod)return;
   const b=$('btnAnalisar');b.disabled=true;b.innerHTML='<span class="spin"></span> Analisando…';
   try{
-    const d=await api('/api/intel/cliente/'+encodeURIComponent(cod));
+    const t=temporada();
+    const d=await api('/api/intel/cliente/'+encodeURIComponent(cod)+(t?'?temporada='+encodeURIComponent(t):''));
     CLI=d;REC=null;DECISOES={};$('recs').innerHTML='';$('foot').style.display='none';
     render(d);
     $('painel').classList.remove('hid');
@@ -250,7 +267,25 @@ function render(d){
     <div class="kpi"><div class="l">Peças 12m anteriores</div><div class="v">${nb(p.pecas_12m_anterior)}</div><div class="s">${brl(p.valor_12m_anterior)}</div></div>
     <div class="kpi"><div class="l">Evolução (peças)</div><div class="v" style="color:${evo>=0?'var(--ok)':'var(--bad)'}">${evo===null?'—':(evo>=0?'+':'')+evo+'%'}</div></div>`;
 
-  $('clusters').innerHTML=(d.clusters||[]).map(c=>`<div class="chip"><b>${esc(c.cluster)}</b><small>${esc(c.dimensao)} · ${esc(c.base)}</small></div>`).join('')||'<span style="color:var(--mut);font-size:.8rem">Sem dados suficientes.</span>';
+  // Perfil único (linha histórica)
+  const pc=d.perfil_cliente;
+  const corPerfil={'Vip':'#7c3aed','Vip 3+':'#9333ea','Frequente':'#2563EB','Regular':'#0891b2','Novo':'#059669','Eventual':'#d97706','Sem compras':'#94a3b8'}[pc?.tier]||'#2563EB';
+  $('perfilCli').innerHTML=pc?`<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <div style="background:${corPerfil};color:#fff;border-radius:16px;padding:14px 22px;text-align:center;min-width:120px">
+      <div style="font-size:1.5rem;font-weight:800;line-height:1">${esc(pc.tier)}</div>
+      <div style="font-size:.66rem;opacity:.9;margin-top:3px">${esc(pc.faixa)}</div></div>
+    <div style="font-size:.85rem;color:#374151;line-height:1.5">Comprou em <b>${pc.colecoes_compradas} coleções distintas</b> ao longo do histórico.<br>
+    <span style="color:var(--mut);font-size:.76rem">Quanto mais coleções, mais fiel e previsível é a recompra.</span></div></div>`:'<div style="color:var(--mut)">Sem compras registradas.</div>';
+  $('clusters').innerHTML=(d.clusters||[]).map(c=>`<div class="chip"><b>${esc(c.cluster)}</b><small>${esc(c.dimensao)}</small></div>`).join('')||'<span style="color:var(--mut);font-size:.8rem">—</span>';
+
+  // Tiers Entrada/Médio/Premium (destaque)
+  const tiers=dna?.distribuicao.tier||[];
+  const corTier={'Entrada':'#0891b2','Médio':'#2563EB','Premium':'#7c3aed'};
+  $('dnaTier').innerHTML=tiers.length?`<div style="display:flex;gap:10px">`+tiers.map(t=>`
+    <div style="flex:${Math.max(t.pct,3)};min-width:80px;text-align:center">
+      <div style="background:${corTier[t.chave]};color:#fff;border-radius:10px 10px 0 0;padding:8px 4px;font-weight:700;font-size:1.1rem">${t.pct}%</div>
+      <div style="border:1px solid var(--line);border-top:none;border-radius:0 0 10px 10px;padding:6px 4px;font-size:.72rem"><b>${t.chave}</b><br><span style="color:var(--mut)">${Math.round(t.qtd).toLocaleString('pt-BR')} pç</span></div>
+    </div>`).join('')+`</div>`+ (dna?.tier_dominante?`<div style="margin-top:10px;font-size:.8rem"><b>Concentração:</b> ${esc(dna.tier_dominante)}</div>`:'') :'<div style="color:var(--mut);font-size:.8rem">Sem itens no recorte.</div>';
 
   barras('dnaCat',dna?.participacao.categoria);
   barras('dnaMarca',dna?[...dna.participacao.marca.slice(0,4),...dna.participacao.linha.slice(0,4).map(x=>({...x,chave:'Linha · '+x.chave}))]:null);
@@ -279,24 +314,27 @@ async function recomendar(){
   const col=$('selColecao').value;
   const b=$('btnRec');b.disabled=true;b.innerHTML='<span class="spin"></span> Calculando…';
   try{
-    REC=await api(`/api/intel/cliente/${encodeURIComponent(CLI.perfil.codcli)}/recomendacoes?colecao=${encodeURIComponent(col)}`);
+    const t=temporada();
+    REC=await api(`/api/intel/cliente/${encodeURIComponent(CLI.perfil.codcli)}/recomendacoes?colecao=${encodeURIComponent(col)}${t?'&temporada='+encodeURIComponent(t):''}`);
     DECISOES={};
     renderRecs();
   }catch(e){$('recs').innerHTML=`<div class="aviso">${esc(e.message)}</div>`}
   b.disabled=false;b.textContent='Gerar sugestões';
 }
 
-const TIPOS={ESSENCIAL:{t:'🎯 Compra Essencial',d:'Elevada aderência ao histórico do cliente — o núcleo do pedido.',c:'#059669'},
-EXPANSAO:{t:'📈 Expansão',d:'Próximos ao DNA existente; ampliam o mix com risco controlado.',c:'#2563EB'},
-OPORTUNIDADE:{t:'💡 Oportunidade',d:'Boa performance entre clientes semelhantes, ainda ausentes do histórico individual.',c:'#d97706'}};
+const TIPOS={ALTO_GIRO:{t:'🔁 Alto giro',d:'O forte do cliente — marca, categoria e faixa que ele mais compra. Devem girar na loja.',c:'#059669'},
+TARGET:{t:'🎯 Target',d:'O que o perfil e clientes semelhantes compram e ele ainda não — alvo de conquista.',c:'#2563EB'},
+DESAFIO:{t:'🚀 Desafio',d:'Faixa/categoria pouco explorada pelo cliente — para ampliar a participação.',c:'#d97706'}};
+const TIER_COR={'Entrada':'#0891b2','Médio':'#2563EB','Premium':'#7c3aed'};
 
-function scoreCor(s){return s>=70?'#059669':s>=50?'#d97706':'#94a3b8'}
+function scoreCor(s){return s>=65?'#059669':s>=50?'#d97706':'#94a3b8'}
 
 function renderRecs(){
   const r=REC;
-  $('recInfo').textContent=`${r.resumo.total_recomendado} sugestões · base: ${r.resumo.clientes_com_historico_na_colecao} clientes com histórico na coleção · ${r.resumo.clientes_semelhantes_considerados} semelhantes considerados`;
+  const rd=r.resumo.tier_dominante?` · concentra em <b>${esc(r.resumo.tier_dominante)}</b>`:'';
+  $('recInfo').innerHTML=`${r.resumo.total_recomendado} sugestões · base: ${r.resumo.clientes_com_historico_na_colecao} clientes na coleção · ${r.resumo.clientes_semelhantes_considerados} semelhantes${rd}`;
   let html='';
-  for(const tipo of ['ESSENCIAL','EXPANSAO','OPORTUNIDADE']){
+  for(const tipo of ['ALTO_GIRO','TARGET','DESAFIO']){
     const lst=r.recomendacoes[tipo]||[];
     if(!lst.length)continue;
     const m=TIPOS[tipo];
@@ -310,7 +348,7 @@ function renderRecs(){
             <div class="cod">${esc(p.codigo)}</div>
             <div class="nm">${esc(p.descricao)}</div>
             <div class="mt">${esc(p.marca)} · ${esc(p.grupo)} · ${esc(p.linha)}${p.familia?' · '+esc(p.familia):''}</div>
-            <div class="pr">R$ ${p.preco_tabela.toFixed(2)} <span style="font-size:.66rem;color:var(--mut);font-weight:400">${esc(p.faixa_preco)}</span></div>
+            <div class="pr">R$ ${p.preco_tabela.toFixed(2)} ${p.tier?`<span style="font-size:.62rem;color:#fff;background:${TIER_COR[p.tier]||'#64748b'};padding:1px 7px;border-radius:8px;font-weight:600;vertical-align:1px">${esc(p.tier)}</span>`:''}</div>
           </div>
           <div class="score" style="background:${scoreCor(p.score)}">${p.score}<small>score</small></div>
         </div>

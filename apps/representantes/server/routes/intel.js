@@ -8,7 +8,7 @@ import { exciaGet, exciaConfigurado } from '../lib/exciaClient.js';
 import { syncGeral, syncItensDoCliente, statusSync } from '../lib/intelSync.js';
 import { firebirdConfigurado, fbPing } from '../lib/firebirdClient.js';
 import {
-  perfil360, dnaCompra, clusters, recomendarColecao, perfilEstetico, clientesSemelhantes,
+  perfil360, perfilCliente, dnaCompra, clusters, recomendarColecao, perfilEstetico, clientesSemelhantes,
 } from '../lib/intelMotor.js';
 
 export const intel = Router();
@@ -148,14 +148,18 @@ intel.get('/cliente/:codcli', resolverCodcli, podeVer, async (req, res) => {
       // Cidade/UF não vêm na carga em massa do Firebird — completa uma vez via REST.
       await enriquecerCadastro(codcli);
     }
+    const temporada = ['Verão', 'Inverno'].includes(req.query.temporada) ? req.query.temporada : null;
+    const filtro = temporada ? { temporada } : {};
     const perfil = perfil360(codcli);
     if (!perfil) return res.status(404).json({ error: 'cliente sem cadastro e sem pedidos na base analítica' });
-    const dna = dnaCompra(codcli);
+    const dna = dnaCompra(codcli, filtro);
     res.json({
       perfil,
+      perfil_cliente: perfilCliente(codcli), // classificação única pela linha histórica
+      temporada,
       dna,
       clusters: clusters(codcli, perfil, dna),
-      estetica: perfilEstetico(codcli),
+      estetica: perfilEstetico(codcli, filtro),
       semelhantes: clientesSemelhantes(codcli, 8).map((s) => ({
         codcli: s.codcli,
         similaridade: Math.round(s.sim * 100),
@@ -173,8 +177,9 @@ intel.get('/cliente/:codcli/recomendacoes', resolverCodcli, podeVer, (req, res) 
   const { codcli } = req.params;
   const colecao = String(req.query.colecao || '').trim();
   if (!colecao) return res.status(400).json({ error: 'informe ?colecao=' });
+  const temporada = ['Verão', 'Inverno'].includes(req.query.temporada) ? req.query.temporada : null;
   try {
-    const r = recomendarColecao(codcli, colecao);
+    const r = recomendarColecao(codcli, colecao, { filtro: temporada ? { temporada } : {} });
     if (r.erro) return res.status(422).json({ error: r.erro });
     res.json(r);
   } catch (e) {

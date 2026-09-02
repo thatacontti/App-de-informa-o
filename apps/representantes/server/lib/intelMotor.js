@@ -12,6 +12,99 @@ const FAIXAS = [
 ];
 const faixaDe = (p) => (FAIXAS.find((f) => p >= f.min && p < f.max) || FAIXAS[FAIXAS.length - 1]).id;
 
+export const TIERS = ['Entrada', 'Médio', 'Premium'];
+
+// Classificação Entrada/Médio/Premium RELATIVA AO SEGMENTO: dentro de
+// (coleção, marca, tipo/grupo, grade/linha) o produto é comparado aos pares
+// por preço (terços). Se o grupo é pequeno, sobe de nível (marca+grupo+linha →
+// marca+grupo → marca). Reflete ano/coleção/marca/tipo/grade, como pedido.
+const TIER_CUTS_MARCA = { // último recurso, quando não há pares suficientes
+  KIKI: { entradaAte: 60, premiumDe: 78 },
+  'MENINA ANJO': { entradaAte: 72, premiumDe: 100 },
+  VALENT: { entradaAte: 71, premiumDe: 97 },
+};
+const TIER_DEFAULT = { entradaAte: 65, premiumDe: 90 };
+const MIN_PARES = 6; // mínimo de produtos com preço para usar terços do grupo
+
+const tierProdutoMap = (() => {
+  let cache = null; let em = 0;
+  return () => {
+    if (cache && Date.now() - em < 10 * 60 * 1000) return cache;
+    const prods = idb.prepare(
+      `SELECT codigo, colecao, marca, grupo, linha, preco_tabela FROM produtos WHERE preco_tabela > 0`,
+    ).all();
+    // grupos em 3 níveis de granularidade
+    const niveis = [
+      (p) => `${p.colecao}|${p.marca}|${p.grupo}|${p.linha}`,
+      (p) => `${p.marca}|${p.grupo}|${p.linha}`,
+      (p) => `${p.marca}|${p.grupo}`,
+    ];
+    const grupos = niveis.map(() => new Map());
+    for (const p of prods) niveis.forEach((k, i) => {
+      const key = k(p);
+      if (!grupos[i].has(key)) grupos[i].set(key, []);
+      grupos[i].get(key).push(p.preco_tabela);
+    });
+    for (const g of grupos) for (const arr of g.values()) arr.sort((a, b) => a - b);
+    const corte = (arr) => ({ e: arr[Math.floor(arr.length / 3)], p: arr[Math.floor((arr.length * 2) / 3)] });
+    cache = new Map();
+    for (const p of prods) {
+      let cls = null;
+      for (let i = 0; i < niveis.length && !cls; i++) {
+        const arr = grupos[i].get(niveis[i](p));
+        if (arr && arr.length >= MIN_PARES) {
+          const c = corte(arr);
+          cls = p.preco_tabela < c.e ? 'Entrada' : p.preco_tabela < c.p ? 'Médio' : 'Premium';
+        }
+      }
+      if (!cls) { // sem pares: corte por marca
+        const marcaNome = catDesc('marca', p.marca);
+        const c = TIER_CUTS_MARCA[marcaNome] || TIER_DEFAULT;
+        cls = p.preco_tabela < c.entradaAte ? 'Entrada' : p.preco_tabela < c.premiumDe ? 'Médio' : 'Premium';
+      }
+      cache.set(p.codigo, cls);
+    }
+    em = Date.now();
+    return cache;
+  };
+})();
+
+// Tier de um item de pedido: usa a classificação do produto; se o produto não
+// está no catálogo atual, cai para o corte por marca sobre o preço pago.
+function tierDeItem(codigo, marcaNome, preco) {
+  const m = tierProdutoMap();
+  if (m.has(codigo)) return m.get(codigo);
+  if (!(preco > 0)) return null;
+  const c = TIER_CUTS_MARCA[marcaNome] || TIER_DEFAULT;
+  return preco < c.entradaAte ? 'Entrada' : preco < c.premiumDe ? 'Médio' : 'Premium';
+}
+function tierDeProduto(codigo) {
+  return tierProdutoMap().get(codigo) || null;
+}
+
+// Coleções que NÃO contam como "coleção comprada" no perfil (avulso/atacado).
+const COLECAO_IGNORAR = new Set(['', '00', '9', '09']);
+
+// Perfil ÚNICO do cliente pela linha histórica: nº de coleções DISTINTAS já
+// compradas (todo histórico). Tier mais alto vence na sobreposição das faixas.
+export function perfilCliente(codcli) {
+  const cols = idb.prepare(
+    "SELECT DISTINCT colecao FROM pedidos WHERE codcli=? AND valor_liq>0",
+  ).all(String(codcli)).map((r) => String(r.colecao || '').trim()).filter((c) => !COLECAO_IGNORAR.has(c));
+  const n = new Set(cols).size;
+  // Recência: comprou em alguma das coleções recentes? (p/ Novo vs Eventual)
+  const ult = idb.prepare('SELECT MAX(dt_emissao) d FROM pedidos WHERE codcli=? AND valor_liq>0').get(String(codcli)).d;
+  const recente = ult ? (Date.now() - new Date(ult)) < 400 * 86400000 : false;
+  let tier, faixa;
+  if (n >= 13) { tier = 'Vip'; faixa = '13+ coleções'; }
+  else if (n >= 10) { tier = 'Vip 3+'; faixa = '10 a 12 coleções'; }
+  else if (n >= 8) { tier = 'Frequente'; faixa = '8 a 9 coleções'; }
+  else if (n >= 2) { tier = 'Regular'; faixa = '2 a 7 coleções'; }
+  else if (n === 1) { tier = recente ? 'Novo' : 'Eventual'; faixa = '1 coleção'; }
+  else { tier = 'Sem compras'; faixa = '—'; }
+  return { tier, faixa, colecoes_compradas: n, recente };
+}
+
 const catDesc = (() => {
   let cache = null;
   return (tipo, codigo) => {
@@ -43,8 +136,29 @@ const percentil = (sorted, v) => {
 // ---------------------------------------------------------------------------
 // Base de itens do cliente (join itens × produtos)
 // ---------------------------------------------------------------------------
-function itensDoCliente(codcli) {
-  return idb.prepare(`
+// Temporada (Verão/Inverno) de cada coleção, a partir do catálogo de coleções.
+const temporadaColecao = (() => {
+  let cache = null;
+  return (colecao) => {
+    if (!cache) {
+      cache = {};
+      for (const r of idb.prepare("SELECT codigo, descricao FROM catalogos WHERE tipo='colecao'").all()) {
+        const d = (r.descricao || '').toUpperCase();
+        cache[String(r.codigo).trim()] = d.includes('INVERNO') ? 'Inverno'
+          : (d.includes('VER') || d.includes('TROPICAL') || d.includes('PRIMAVERA')) ? 'Verão' : null;
+      }
+    }
+    return cache[String(colecao || '').trim()] || null;
+  };
+})();
+export function colecoesPorTemporada(temporada) {
+  const rows = idb.prepare("SELECT codigo FROM catalogos WHERE tipo='colecao'").all();
+  return new Set(rows.map((r) => String(r.codigo).trim()).filter((c) => temporadaColecao(c) === temporada));
+}
+
+// filtro opcional: { temporada:'Verão'|'Inverno' } ou { colecao:'41' }
+function itensDoCliente(codcli, filtro = {}) {
+  const rows = idb.prepare(`
     SELECT i.*, p.dt_emissao, p.colecao AS ped_colecao, p.pgto,
            pr.grupo, pr.linha, pr.familia, pr.marca, pr.colecao AS prod_colecao,
            pr.descricao AS prod_desc
@@ -53,6 +167,9 @@ function itensDoCliente(codcli) {
     LEFT JOIN produtos pr ON pr.codigo = i.codigo
     WHERE p.codcli = ?
   `).all(String(codcli));
+  if (filtro.colecao) return rows.filter((r) => String(r.ped_colecao).trim() === String(filtro.colecao).trim());
+  if (filtro.temporada) return rows.filter((r) => temporadaColecao(r.ped_colecao) === filtro.temporada);
+  return rows;
 }
 
 const share = (mapa, total) => Object.entries(mapa)
@@ -158,13 +275,13 @@ export function perfil360(codcli) {
 // ---------------------------------------------------------------------------
 // DNA de compra (itens × produtos)
 // ---------------------------------------------------------------------------
-export function dnaCompra(codcli) {
-  const itens = itensDoCliente(codcli);
+export function dnaCompra(codcli, filtro = {}) {
+  const itens = itensDoCliente(codcli, filtro);
   if (!itens.length) return null;
 
   const acc = {
     grupo: {}, subgrupo: {}, marca: {}, linha: {}, familia: {},
-    tam: {}, cor: {}, faixa: {}, mes: {}, colecaoPed: {},
+    tam: {}, cor: {}, faixa: {}, tier: {}, mes: {}, colecaoPed: {},
   };
   let qtdTotal = 0, valorTotal = 0, comEstampa = 0;
   const porPedido = {}, porProduto = {}, porPedProd = {}, produtosSet = new Set();
@@ -182,6 +299,7 @@ export function dnaCompra(codcli) {
     add('tam', it.tam);
     add('cor', it.desc_cor || catDesc('cor', it.cor));
     add('faixa', faixaDe(Number(it.preco || 0)));
+    add('tier', tierDeItem(it.codigo, catDesc('marca', it.marca), Number(it.preco || 0)));
     add('mes', (it.dt_emissao || '').slice(5, 7));
     add('colecaoPed', it.ped_colecao);
     if (it.estampa || it.desc_estampa) comEstampa += q;
@@ -220,7 +338,13 @@ export function dnaCompra(codcli) {
         chave: `R$ ${f.id}`, qtd: Math.round(acc.faixa[f.id] || 0),
         pct: round1(((acc.faixa[f.id] || 0) / qtdTotal) * 100),
       })),
+      // Entrada / Médio / Premium — a leitura que a empresa usa (Painel V27).
+      tier: TIERS.map((t) => ({
+        chave: t, qtd: Math.round(acc.tier[t] || 0),
+        pct: round1(((acc.tier[t] || 0) / qtdTotal) * 100),
+      })),
     },
+    tier_dominante: TIERS.map((t) => ({ t, q: acc.tier[t] || 0 })).sort((a, b) => b.q - a.q)[0]?.t || null,
     qtd_media_por_pedido: round1(qtdTotal / (qtdsPed.length || 1)),
     // Mediana de peças por produto dentro de um pedido — base da grade sugerida.
     qtd_tipica_por_produto: Math.max(Math.round(mediana(Object.values(porPedProd))), 1),
@@ -398,9 +522,10 @@ const normalizaShares = (lista) => {
   return m;
 };
 
-export function recomendarColecao(codcli, colecao, { topPorTipo = 15 } = {}) {
-  const dna = dnaCompra(codcli);
-  if (!dna) return { erro: 'sem histórico de itens sincronizado para este cliente' };
+export function recomendarColecao(codcli, colecao, { topPorTipo = 15, filtro = {} } = {}) {
+  // DNA no MESMO recorte de temporada usado na análise (de-para consistente).
+  const dna = dnaCompra(codcli, filtro);
+  if (!dna) return { erro: 'sem histórico de itens sincronizado para este cliente neste recorte' };
 
   const produtos = idb.prepare(
     `SELECT * FROM produtos WHERE colecao=? AND ativo='S'`,
@@ -411,9 +536,14 @@ export function recomendarColecao(codcli, colecao, { topPorTipo = 15 } = {}) {
   const afMarca = normalizaShares(dna.participacao.marca);
   const afLinha = normalizaShares(dna.participacao.linha);
   const afFamilia = normalizaShares(dna.participacao.familia);
-  const afFaixa = normalizaShares(dna.distribuicao.faixa_preco.map((f) => ({ chave: f.chave.replace('R$ ', ''), pct: f.pct })));
   const afTam = new Map(dna.distribuicao.tamanho.map((t) => [t.chave, t.pct / 100]));
   const afCor = new Map(dna.distribuicao.cor.map((c) => [c.chave.toUpperCase(), c.pct / 100]));
+  // Participação do cliente por tier (Entrada/Médio/Premium) — normalizada.
+  const afTier = normalizaShares(dna.distribuicao.tier);
+  const tierShare = Object.fromEntries(dna.distribuicao.tier.map((t) => [t.chave, t.pct]));
+  const tierDominante = dna.tier_dominante;
+  // Tier menos explorado (candidato a "desafio" — ampliar faixa de participação).
+  const tierDesafio = [...dna.distribuicao.tier].sort((a, b) => a.pct - b.pct)[0]?.chave || null;
 
   // Popularidade na coleção: adoção entre clientes com itens sincronizados.
   const adocao = new Map();
@@ -455,18 +585,19 @@ export function recomendarColecao(codcli, colecao, { topPorTipo = 15 } = {}) {
   // artificialmente baixo e nada chegaria a "Essencial".
   const temAdocao = cliColecao > 0 || simSet.size > 0;
   const PESOS = temAdocao
-    ? { grupo: 0.20, marca: 0.15, linha: 0.10, familia: 0.05, preco: 0.15, cor: 0.10, tam: 0.10, pop: 0.15 }
-    : { grupo: 0.28, marca: 0.22, linha: 0.14, familia: 0.06, preco: 0.18, cor: 0.00, tam: 0.12, pop: 0.00 };
+    ? { grupo: 0.20, marca: 0.15, linha: 0.10, familia: 0.05, tier: 0.15, cor: 0.10, tam: 0.10, pop: 0.15 }
+    : { grupo: 0.28, marca: 0.22, linha: 0.14, familia: 0.06, tier: 0.18, cor: 0.00, tam: 0.12, pop: 0.00 };
 
   const avaliados = produtos.map((pr) => {
     const cores = JSON.parse(pr.cores || '[]');
     const tams = JSON.parse(pr.tams || '[]');
+    const tier = tierDeProduto(pr.codigo);
     const comp = {
       grupo: afGrupo[catDesc('grupo', pr.grupo)] || 0,
       marca: afMarca[catDesc('marca', pr.marca)] || 0,
       linha: afLinha[catDesc('linha', pr.linha)] || 0,
       familia: pr.familia ? (afFamilia[catDesc('familia', pr.familia)] || 0) : 0,
-      preco: afFaixa[faixaDe(pr.preco_tabela || 0)] || 0,
+      tier: tier ? (afTier[tier] || 0) : 0,
       cor: cores.length
         ? Math.min(cores.reduce((s, c) => s + (afCor.get(catDesc('cor', c).toUpperCase()) || 0), 0) * 3, 1)
         : 0,
@@ -477,29 +608,37 @@ export function recomendarColecao(codcli, colecao, { topPorTipo = 15 } = {}) {
     };
     let score = 0;
     for (const [k, w] of Object.entries(PESOS)) score += Math.min(comp[k], 1) * w;
-    return { pr, comp, score: Math.max(0, Math.min(Math.round(score * 100), 100)) };
+    return { pr, comp, tier, score: Math.max(0, Math.min(Math.round(score * 100), 100)) };
   });
 
   const popVals = avaliados.map((a) => a.comp.pop).sort((a, b) => a - b);
   const popP75 = popVals[Math.floor(popVals.length * 0.75)] || 0;
 
-  const tipoDe = (a) => {
-    const histCore = a.comp.grupo >= 0.5 && a.comp.marca >= 0.5;
-    // OPORTUNIDADE: forte entre semelhantes/na coleção, fora do núcleo histórico.
-    if (temAdocao && a.comp.pop >= Math.max(popP75, 0.15) && a.comp.grupo < 0.35 && !jaComprou.has(a.pr.codigo)) return 'OPORTUNIDADE';
-    if (a.score >= 65 && histCore) return 'ESSENCIAL';
-    if (a.score >= 38) return 'EXPANSAO';
+  // Três papéis (de-para histórico → coleção nova):
+  // ALTO_GIRO  = já é o forte do cliente (marca+categoria+tier dominante) → estoque de giro.
+  // TARGET     = o que o perfil/semelhantes compram e ele ainda não → alvo de conquista.
+  // DESAFIO    = tier/faixa pouco explorada pelo cliente → ampliar a participação.
+  const papelDe = (a) => {
+    const histCore = a.comp.grupo >= 0.45 && a.comp.marca >= 0.5;
+    const noTierDominante = a.tier && a.tier === tierDominante;
+    if (histCore && noTierDominante && a.score >= 55) return 'ALTO_GIRO';
+    if (temAdocao && a.comp.pop >= Math.max(popP75, 0.15) && a.comp.marca >= 0.4 && !jaComprou.has(a.pr.codigo)) return 'TARGET';
+    if (a.tier && a.tier === tierDesafio && a.comp.marca >= 0.4 && a.score >= 38) return 'DESAFIO';
+    // sobra dos que têm bom fit mas não se encaixaram: reforço de giro/target
+    if (histCore && a.score >= 50) return 'ALTO_GIRO';
+    if (a.score >= 45 && !jaComprou.has(a.pr.codigo)) return 'DESAFIO';
     return null;
   };
 
-  const grupos = { ESSENCIAL: [], EXPANSAO: [], OPORTUNIDADE: [] };
+  const grupos = { ALTO_GIRO: [], TARGET: [], DESAFIO: [] };
   for (const a of avaliados) {
-    const t = tipoDe(a);
+    const t = papelDe(a);
     if (t) grupos[t].push(a);
   }
+  const ctx = { adSim, adocao, similares: simSet.size, cliColecao, tierDominante, tierDesafio, tierShare };
   for (const t of Object.keys(grupos)) {
     grupos[t] = grupos[t].sort((a, b) => b.score - a.score).slice(0, topPorTipo)
-      .map((a) => montarRecomendacao(a, dna, { adSim, adocao, similares: simSet.size, cliColecao }));
+      .map((a) => montarRecomendacao(a, dna, { ...ctx, papel: t }));
   }
 
   const resumo = {
@@ -507,7 +646,8 @@ export function recomendarColecao(codcli, colecao, { topPorTipo = 15 } = {}) {
     produtos_na_colecao: produtos.length,
     clientes_com_historico_na_colecao: cliColecao,
     clientes_semelhantes_considerados: simSet.size,
-    total_recomendado: grupos.ESSENCIAL.length + grupos.EXPANSAO.length + grupos.OPORTUNIDADE.length,
+    tier_dominante: tierDominante, tier_desafio: tierDesafio,
+    total_recomendado: grupos.ALTO_GIRO.length + grupos.TARGET.length + grupos.DESAFIO.length,
   };
   const financeiro = {};
   for (const t of Object.keys(grupos)) {
@@ -562,13 +702,15 @@ function montarRecomendacao(a, dna, ctx) {
     linha: catDesc('linha', pr.linha),
     familia: pr.familia ? catDesc('familia', pr.familia) : null,
     preco_tabela: preco,
+    tier: a.tier,             // Entrada / Médio / Premium (relativo ao segmento)
+    papel: ctx.papel,         // ALTO_GIRO / TARGET / DESAFIO
     faixa_preco: `R$ ${faixaDe(preco)}`,
     cores: JSON.parse(pr.cores || '[]').map((c) => catDesc('cor', c)),
     score: a.score,
     componentes: Object.fromEntries(Object.entries(a.comp).map(([k, v]) => [k, round1(v * 100)])),
     justificativa: justificar(a, dna, ctx),
     grade: {
-      qtd_total: qtdTotal,
+      qtd_total: qtdTotal,      // volume sugerido por referência
       por_tamanho: grade,
       valor_estimado: Math.round(qtdTotal * preco * 100) / 100,
     },
@@ -588,7 +730,15 @@ function justificar(a, dna, ctx) {
   if (comp.marca >= 0.5 && sm) partes.push(`a marca ${m} soma ${sm}% das peças compradas`);
   const sl = shareDe(dna.participacao.linha, l);
   if (comp.linha >= 0.5 && sl) partes.push(`linha ${l} = ${sl}% do volume`);
-  if (comp.preco >= 0.6) partes.push(`preço de tabela dentro da faixa preferida (${`R$ ${faixaDe(pr.preco_tabela || 0)}`})`);
+  // Tier (Entrada/Médio/Premium) — a leitura central pedida.
+  if (a.tier) {
+    const st = ctx.tierShare?.[a.tier];
+    if (ctx.papel === 'DESAFIO' && a.tier === ctx.tierDesafio) {
+      partes.push(`faixa ${a.tier} é pouco explorada pelo cliente (${st ?? 0}% do volume) — ampliar participação`);
+    } else if (st != null) {
+      partes.push(`faixa ${a.tier}, onde o cliente concentra ${st}% das peças`);
+    }
+  }
   if (comp.tam >= 0.5) partes.push('grade cobre os tamanhos que o cliente mais pede');
   if (comp.cor >= 0.4) partes.push('cartela de cores alinhada às cores mais compradas');
   const adSimVal = ctx.adSim.get(pr.codigo);
@@ -597,15 +747,15 @@ function justificar(a, dna, ctx) {
   } else if ((ctx.adocao.get(pr.codigo) || 0) >= 0.2 && ctx.cliColecao) {
     partes.push(`${Math.round((ctx.adocao.get(pr.codigo) || 0) * 100)}% dos clientes da coleção já pediram`);
   }
-  if (!partes.length) partes.push('aderência distribuída entre categoria, preço e grade — sem fator dominante');
+  if (!partes.length) partes.push('aderência distribuída entre categoria, faixa e grade — sem fator dominante');
   return partes.join('; ') + '.';
 }
 
 // ---------------------------------------------------------------------------
 // Perfil estético (camada semântica leve, sem números inventados)
 // ---------------------------------------------------------------------------
-export function perfilEstetico(codcli) {
-  const dna = dnaCompra(codcli);
+export function perfilEstetico(codcli, filtro = {}) {
+  const dna = dnaCompra(codcli, filtro);
   if (!dna) return null;
   const tags = [];
   tags.push(dna.pct_estampado >= 55 ? 'Estampado' : dna.pct_estampado >= 30 ? 'Misto estampa/liso' : 'Liso e básico');
