@@ -8,7 +8,7 @@ import { exciaGet, exciaConfigurado } from '../lib/exciaClient.js';
 import { syncGeral, syncItensDoCliente, statusSync } from '../lib/intelSync.js';
 import { firebirdConfigurado, fbPing } from '../lib/firebirdClient.js';
 import {
-  perfil360, perfilCliente, dnaCompra, clusters, recomendarColecao, recomendarPlano, perfilEstetico, clientesSemelhantes,
+  perfil360, perfilCliente, dnaCompra, clusters, recomendarColecao, recomendarPlano, perfilEstetico, perfilTextual, dnaPorMarca, clientesSemelhantes,
 } from '../lib/intelMotor.js';
 import { colecoesPlano, imagemPlano, planoDisponivel } from '../lib/plano2027.js';
 
@@ -161,6 +161,8 @@ intel.get('/cliente/:codcli', resolverCodcli, podeVer, async (req, res) => {
       perfil_cliente: perfilCliente(codcli), // classificação única pela linha histórica
       temporada,
       dna,
+      perfil_texto: perfilTextual(codcli, filtro),
+      dna_marca: dnaPorMarca(codcli, filtro),
       clusters: clusters(codcli, perfil, dna),
       estetica: perfilEstetico(codcli, filtro),
       semelhantes: clientesSemelhantes(codcli, 8).map((s) => ({

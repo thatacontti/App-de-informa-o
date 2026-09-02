@@ -360,6 +360,96 @@ export function dnaCompra(codcli, filtro = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// DNA aberto POR MARCA — base do texto de perfil de compra.
+// ---------------------------------------------------------------------------
+export function dnaPorMarca(codcli, filtro = {}) {
+  const itens = itensDoCliente(codcli, filtro);
+  if (!itens.length) return [];
+  const M = {};
+  let qtdGeral = 0;
+  for (const it of itens) {
+    const q = Number(it.qtde || 0) + Number(it.faturado || 0);
+    if (q <= 0) continue;
+    qtdGeral += q;
+    const m = catDesc('marca', it.marca);
+    const g = (M[m] ??= { marca: m, q: 0, valor: 0, grupo: {}, linha: {}, tam: {}, cor: {}, tier: {}, estampa: 0 });
+    g.q += q; g.valor += q * Number(it.preco || 0);
+    const add = (dim, k) => { if (k) g[dim][k] = (g[dim][k] || 0) + q; };
+    add('grupo', catDesc('grupo', it.grupo));
+    add('linha', catDesc('linha', it.linha));
+    add('tam', it.tam);
+    add('cor', it.desc_cor || catDesc('cor', it.cor));
+    add('tier', tierDeItem(it.codigo, m, Number(it.preco || 0)));
+    if (it.estampa || it.desc_estampa) g.estampa += q;
+  }
+  // crescimento YoY por marca (peças 365d vs 365d anteriores)
+  const yoy = {};
+  for (const r of idb.prepare(`
+    SELECT pr.marca,
+      SUM(CASE WHEN p.dt_emissao >= date('now','-365 days') THEN (i.qtde+i.faturado) ELSE 0 END) q1,
+      SUM(CASE WHEN p.dt_emissao <  date('now','-365 days') AND p.dt_emissao >= date('now','-730 days') THEN (i.qtde+i.faturado) ELSE 0 END) q0
+    FROM pedido_itens i JOIN pedidos p ON p.numero=i.numero LEFT JOIN produtos pr ON pr.codigo=i.codigo
+    WHERE p.codcli=? GROUP BY pr.marca`).all(String(codcli))) {
+    yoy[catDesc('marca', r.marca)] = r.q0 > 0 ? round1(((r.q1 - r.q0) / r.q0) * 100) : (r.q1 > 0 ? null : 0);
+  }
+  const topN = (obj, n, tot) => Object.entries(obj).map(([chave, v]) => ({ chave, qtd: Math.round(v), pct: round1((v / tot) * 100) }))
+    .sort((a, b) => b.qtd - a.qtd).slice(0, n);
+  return Object.values(M).map((g) => ({
+    marca: g.marca,
+    pecas: Math.round(g.q),
+    pct_carteira: round1((g.q / qtdGeral) * 100),
+    valor: Math.round(g.valor),
+    ticket_peca: round1(g.valor / g.q),
+    categorias: topN(g.grupo, 3, g.q),
+    linhas: topN(g.linha, 3, g.q),
+    tamanhos: topN(g.tam, 4, g.q),
+    cores: topN(g.cor, 3, g.q),
+    tiers: TIERS.map((t) => ({ chave: t, pct: round1(((g.tier[t] || 0) / g.q) * 100) })),
+    tier_dominante: TIERS.map((t) => ({ t, q: g.tier[t] || 0 })).sort((a, b) => b.q - a.q)[0]?.t || null,
+    pct_estampado: round1((g.estampa / g.q) * 100),
+    crescimento_pct: yoy[g.marca] ?? null,
+  })).sort((a, b) => b.pecas - a.pecas);
+}
+
+// Texto de perfil de compra (determinístico — números vêm dos dados; a IA não
+// é fonte de cálculo). Retorna { resumo, por_marca:[{marca, texto}] }.
+export function perfilTextual(codcli, filtro = {}) {
+  const perfil = perfil360(codcli);
+  const pc = perfilCliente(codcli);
+  const marcas = dnaPorMarca(codcli, filtro);
+  if (!perfil || !marcas.length) return null;
+  const nome = (perfil.nome || '').split(' ').slice(0, 3).join(' ');
+  const totalPecas = marcas.reduce((s, m) => s + m.pecas, 0);
+  const marcaLider = marcas[0];
+  const nomeTemp = filtro.temporada ? ` (recorte ${filtro.temporada})` : '';
+
+  const resumo = `${nome} é um cliente <b>${pc.tier}</b> (${pc.faixa}), com <b>${perfil.qtd_pedidos} pedidos</b> e `
+    + `<b>${totalPecas.toLocaleString('pt-BR')} peças</b> no histórico${nomeTemp}, ticket médio de R$ ${perfil.ticket_medio.toLocaleString('pt-BR')}. `
+    + `Trabalha <b>${marcas.length} marca${marcas.length > 1 ? 's' : ''}</b>, liderada por <b>${marcaLider.marca}</b> (${marcaLider.pct_carteira}% do volume). `
+    + (perfil.evolucao_12m_pct == null ? '' : `No último ano ${perfil.evolucao_12m_pct >= 0 ? 'cresceu' : 'recuou'} ${Math.abs(perfil.evolucao_12m_pct)}% em peças.`);
+
+  const por_marca = marcas.map((m) => {
+    const tierTxt = m.tiers.filter((t) => t.pct > 0).map((t) => `${t.chave} ${t.pct}%`).join(', ');
+    const cat = m.categorias.map((c) => `${c.chave} (${c.pct}%)`).join(', ');
+    const linhas = m.linhas.map((l) => l.chave).join('/');
+    const tams = m.tamanhos.map((t) => t.chave).join(', ');
+    const cresc = m.crescimento_pct == null ? 'sem base de comparação'
+      : `${m.crescimento_pct >= 0 ? 'crescimento' : 'queda'} de ${Math.abs(m.crescimento_pct)}% vs o ano anterior`;
+    const est = m.pct_estampado >= 55 ? 'forte preferência por estampados/decorados'
+      : m.pct_estampado >= 30 ? 'mix de estampados e lisos' : 'predominância de peças lisas/básicas';
+    const texto = `Em <b>${m.marca}</b> concentra <b>${m.pct_carteira}%</b> das peças `
+      + `(${m.pecas.toLocaleString('pt-BR')} pç, ticket R$ ${m.ticket_peca}/peça). `
+      + `Compra sobretudo <b>${cat || '—'}</b>${linhas ? `, nas linhas ${linhas}` : ''}. `
+      + `Faixa de preço: ${tierTxt || '—'} — concentração em <b>${m.tier_dominante || '—'}</b>. `
+      + `Tamanhos mais pedidos: ${tams || '—'}. ${est.charAt(0).toUpperCase() + est.slice(1)}. `
+      + `Tendência: ${cresc}.`;
+    return { marca: m.marca, pct: m.pct_carteira, texto };
+  });
+
+  return { resumo, por_marca };
+}
+
+// ---------------------------------------------------------------------------
 // Estatísticas populacionais (para clusters por percentil) — cabeçalhos
 // ---------------------------------------------------------------------------
 let popCache = null;

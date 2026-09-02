@@ -112,6 +112,9 @@ svg text{font-family:inherit}
   <div id="painel" class="hid">
     <div class="exec" id="exec"></div>
 
+    <div class="card" style="margin-top:16px"><h2>📝 Perfil de compra <small>leitura do histórico, aberta por marca</small></h2>
+      <div id="perfilTexto"></div></div>
+
     <div class="grid g2">
       <div class="card"><h2>👤 Perfil 360°</h2><div id="perfil"></div></div>
       <div class="card"><h2>📈 Histórico e evolução <small>valor faturado por mês</small></h2>
@@ -266,6 +269,15 @@ function render(d){
     <div class="kpi"><div class="l">Peças últimos 12m</div><div class="v">${nb(p.pecas_12m)}</div><div class="s">${brl(p.valor_12m)}</div></div>
     <div class="kpi"><div class="l">Peças 12m anteriores</div><div class="v">${nb(p.pecas_12m_anterior)}</div><div class="s">${brl(p.valor_12m_anterior)}</div></div>
     <div class="kpi"><div class="l">Evolução (peças)</div><div class="v" style="color:${evo>=0?'var(--ok)':'var(--bad)'}">${evo===null?'—':(evo>=0?'+':'')+evo+'%'}</div></div>`;
+
+  // Perfil de compra (texto, aberto por marca) — números vêm do histórico
+  const pt=d.perfil_texto;
+  const MC={'KIKI':'#c0397a','MENINA ANJO':'#c47000','VALENT':'#1a4fa0'};
+  if(pt){
+    let h=`<div style="font-size:.92rem;line-height:1.6;color:#374151;margin-bottom:14px">${pt.resumo}</div>`;
+    h+=pt.por_marca.map(m=>`<div style="border-left:4px solid ${MC[m.marca]||'#2563EB'};background:#f8fafc;border-radius:0 10px 10px 0;padding:10px 14px;margin:8px 0;font-size:.85rem;line-height:1.55">${m.texto}</div>`).join('');
+    $('perfilTexto').innerHTML=h;
+  } else $('perfilTexto').innerHTML='<div style="color:var(--mut);font-size:.85rem">Sem itens sincronizados para gerar o perfil.</div>';
 
   // Perfil único (linha histórica)
   const pc=d.perfil_cliente;
