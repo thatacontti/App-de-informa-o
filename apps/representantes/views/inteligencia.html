@@ -332,7 +332,10 @@ function scoreCor(s){return s>=65?'#059669':s>=50?'#d97706':'#94a3b8'}
 function renderRecs(){
   const r=REC;
   const rd=r.resumo.tier_dominante?` · concentra em <b>${esc(r.resumo.tier_dominante)}</b>`:'';
-  $('recInfo').innerHTML=`${r.resumo.total_recomendado} sugestões · base: ${r.resumo.clientes_com_historico_na_colecao} clientes na coleção · ${r.resumo.clientes_semelhantes_considerados} semelhantes${rd}`;
+  const base=r.fonte==='plano2027'
+    ? `curadoria oficial · <b>${r.resumo.produtos_no_plano}</b> produtos no plano`
+    : `base: ${r.resumo.clientes_com_historico_na_colecao} clientes na coleção · ${r.resumo.clientes_semelhantes_considerados} semelhantes`;
+  $('recInfo').innerHTML=`${r.resumo.total_recomendado} sugestões · ${base}${rd}`;
   let html='';
   for(const tipo of ['ALTO_GIRO','TARGET','DESAFIO']){
     const lst=r.recomendacoes[tipo]||[];
@@ -345,14 +348,15 @@ function renderRecs(){
         <div class="hd">
           <img src="/api/intel/imagem/${encodeURIComponent(p.codigo)}" loading="lazy" onerror="this.outerHTML='<div class=noimg>sem foto</div>'">
           <div class="inf">
-            <div class="cod">${esc(p.codigo)}</div>
+            <div class="cod">${esc(p.codigo)}${p.familia?` · <b style="color:#7c3aed">${esc(p.familia)}</b>`:''}</div>
             <div class="nm">${esc(p.descricao)}</div>
-            <div class="mt">${esc(p.marca)} · ${esc(p.grupo)} · ${esc(p.linha)}${p.familia?' · '+esc(p.familia):''}</div>
-            <div class="pr">R$ ${p.preco_tabela.toFixed(2)} ${p.tier?`<span style="font-size:.62rem;color:#fff;background:${TIER_COR[p.tier]||'#64748b'};padding:1px 7px;border-radius:8px;font-weight:600;vertical-align:1px">${esc(p.tier)}</span>`:''}</div>
+            <div class="mt">${esc(p.marca)} · ${esc(p.tipo||p.grupo)}${p.linha?' · '+esc(p.linha):''}${p.tecido?' · '+esc(p.tecido):''}</div>
+            <div class="pr">R$ ${p.preco_tabela.toFixed(2)} ${p.tier?`<span style="font-size:.62rem;color:#fff;background:${TIER_COR[p.tier]||'#64748b'};padding:1px 7px;border-radius:8px;font-weight:600;vertical-align:1px">${esc(p.tier)}</span>`:''}${p.crescimento_tipo&&p.crescimento_tipo.pct!=null?`<span style="font-size:.6rem;margin-left:5px;color:${p.crescimento_tipo.pct>=0?'#059669':'#dc2626'};font-weight:700">${p.crescimento_tipo.pct>=0?'▲':'▼'}${Math.abs(p.crescimento_tipo.pct)}% vs ano ant.</span>`:''}</div>
           </div>
           <div class="score" style="background:${scoreCor(p.score)}">${p.score}<small>score</small></div>
         </div>
         <div class="just">${esc(p.justificativa)}</div>
+        ${p.vol_planejado||p.grade_nome?`<div style="font-size:.66rem;color:var(--mut);padding:0 12px 2px">${p.grade_nome?'grade '+esc(p.grade_nome):''}${p.vol_planejado?' · volume planejado da coleção: '+Number(p.vol_planejado).toLocaleString('pt-BR')+' pç':''}${p.itens&&p.itens.length?' · '+p.itens.slice(0,4).map(esc).join(', '):''}</div>`:''}
         <div class="grade">
           <table><tr>${p.grade.por_tamanho.map(g=>`<th>${esc(g.tam)}</th>`).join('')}</tr>
           <tr>${p.grade.por_tamanho.map(g=>`<td><input type="number" min="0" value="${g.qtd}" data-key="${esc(key)}" data-tam="${esc(g.tam)}" onchange="mudouGrade('${esc(key)}')"></td>`).join('')}</tr>
