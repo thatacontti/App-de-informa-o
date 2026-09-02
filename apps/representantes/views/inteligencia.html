@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inteligência do Cliente · Grupo Catarina</title>
+<style>
+:root{--bg:#ECEDEF;--card:#fff;--tx:#1f2937;--mut:#6b7280;--blue:#2563EB;--line:#e5e7eb;
+--ok:#059669;--warn:#d97706;--bad:#dc2626;--r:20px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
+.top{background:#fff;border-bottom:1px solid var(--line);padding:14px 28px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
+.top h1{font-size:1.05rem;font-weight:700}
+.top small{color:var(--mut);font-weight:400;display:block;font-size:.72rem}
+.top .sp{flex:1}
+.btn{background:var(--blue);color:#fff;border:none;border-radius:12px;padding:10px 18px;font-weight:600;font-size:.85rem;cursor:pointer;font-family:inherit}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.ghost{background:#fff;color:var(--blue);border:1.5px solid var(--blue)}
+.btn.mini{padding:6px 12px;border-radius:9px;font-size:.75rem}
+.btn.ok{background:var(--ok)} .btn.bad{background:#fff;color:var(--bad);border:1.5px solid var(--bad)}
+.wrap{max-width:1240px;margin:0 auto;padding:22px 22px 120px}
+.busca{background:#fff;border-radius:var(--r);padding:22px 26px;box-shadow:0 2px 10px rgba(0,0,0,.05);display:flex;gap:12px;align-items:end;flex-wrap:wrap;position:relative}
+.busca label{font-size:.72rem;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px}
+.busca input{border:1.5px solid var(--line);border-radius:12px;padding:11px 14px;font-size:1rem;font-family:inherit;width:280px}
+.busca input:focus{outline:none;border-color:var(--blue)}
+#sug{position:absolute;top:100%;left:26px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-width:440px;z-index:30;overflow:hidden;display:none}
+#sug div{padding:9px 14px;cursor:pointer;font-size:.85rem;border-bottom:1px solid #f3f4f6}
+#sug div:hover{background:#eff6ff}
+.grid{display:grid;gap:16px;margin-top:16px}
+.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:900px){.g2,.g3{grid-template-columns:1fr}}
+.card{background:var(--card);border-radius:var(--r);padding:20px 24px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+.card h2{font-size:.95rem;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card h2 small{color:var(--mut);font-weight:400;font-size:.72rem}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.kpi{background:#f8fafc;border-radius:14px;padding:12px 14px}
+.kpi .l{font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);font-weight:600}
+.kpi .v{font-size:1.25rem;font-weight:700;margin-top:2px}
+.kpi .s{font-size:.7rem;color:var(--mut)}
+.fact{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed #eef1f4;font-size:.84rem}
+.fact b{text-align:right}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:#eff6ff;border:1px solid #bfdbfe;border-radius:999px;padding:6px 13px;font-size:.76rem}
+.chip b{color:var(--blue)} .chip small{color:var(--mut);display:block;font-size:.64rem}
+.bar{display:grid;grid-template-columns:130px 1fr 52px;align-items:center;gap:8px;font-size:.78rem;margin:5px 0}
+.bar .tr{background:#f1f5f9;border-radius:6px;height:12px;overflow:hidden}
+.bar .fill{height:100%;background:var(--blue);border-radius:6px}
+.bar .pc{text-align:right;font-weight:600;font-size:.72rem}
+.tag{display:inline-block;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;border-radius:999px;padding:5px 12px;font-size:.76rem;margin:3px 4px 3px 0}
+.exec{background:linear-gradient(135deg,#eff6ff,#fff);border:1.5px solid #bfdbfe;border-radius:var(--r);padding:18px 24px;margin-top:16px;font-size:.9rem;line-height:1.55}
+.secRec{margin-top:22px}
+.secRec>h2{font-size:1rem;margin-bottom:4px}
+.secRec>p{font-size:.78rem;color:var(--mut);margin-bottom:12px}
+.prods{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.prod{background:#fff;border-radius:16px;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow:hidden;display:flex;flex-direction:column}
+.prod .hd{display:flex;gap:12px;padding:12px}
+.prod img,.prod .noimg{width:78px;height:102px;border-radius:10px;object-fit:cover;background:#f1f5f9;flex:none}
+.prod .noimg{display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:.6rem}
+.prod .inf{flex:1;min-width:0}
+.prod .cod{font-family:ui-monospace,monospace;font-size:.66rem;color:var(--mut)}
+.prod .nm{font-size:.82rem;font-weight:600;line-height:1.25;margin:2px 0}
+.prod .mt{font-size:.7rem;color:var(--mut)}
+.prod .pr{font-weight:700;font-size:.95rem;margin-top:3px}
+.score{margin-left:auto;flex:none;width:46px;height:46px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;color:#fff}
+.score small{font-size:.5rem;font-weight:400}
+.just{font-size:.72rem;color:#475569;background:#f8fafc;padding:8px 12px;line-height:1.4}
+.grade{padding:10px 12px}
+.grade table{width:100%;border-collapse:collapse;font-size:.74rem}
+.grade th{text-align:center;color:var(--mut);font-weight:600;padding:3px;font-size:.64rem;text-transform:uppercase}
+.grade td{text-align:center;padding:3px}
+.grade input{width:44px;text-align:center;border:1px solid var(--line);border-radius:7px;padding:4px 2px;font-family:inherit;font-size:.76rem}
+.grade .tot{font-size:.76rem;font-weight:600;margin-top:6px;display:flex;justify-content:space-between}
+.acts{display:flex;gap:8px;padding:10px 12px;border-top:1px solid #f1f5f9;margin-top:auto}
+.st{font-size:.7rem;font-weight:700;padding:8px 12px;border-radius:10px;text-align:center;flex:1}
+.st.aceito{background:#f0fdf4;color:#166534}.st.alterado{background:#fffbeb;color:#92400e}.st.rejeitado{background:#fef2f2;color:#991b1b}
+.foot{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);padding:12px 28px;display:none;align-items:center;gap:22px;flex-wrap:wrap;z-index:25;box-shadow:0 -4px 16px rgba(0,0,0,.06)}
+.foot .f{font-size:.78rem;color:var(--mut)} .foot .f b{color:var(--tx);font-size:.95rem;display:block}
+.hid{display:none!important}
+.aviso{background:#fffbeb;border:1.5px solid #fde68a;color:#92400e;border-radius:14px;padding:12px 16px;font-size:.8rem;margin-top:14px}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:sp 1s linear infinite;vertical-align:-3px}
+@keyframes sp{to{transform:rotate(360deg)}}
+svg text{font-family:inherit}
+</style>
+</head>
+<body>
+<div class="top">
+  <div><h1>Inteligência de Compra e Sugestão de Pedido<small>Grupo Catarina · dados oficiais do ERP EXCIA</small></h1></div>
+  <div class="sp"></div>
+  <a class="btn ghost mini" href="/plataforma">← Plataforma</a>
+</div>
+
+<div class="wrap">
+  <div class="busca">
+    <div>
+      <label>Código do Cliente</label>
+      <input id="codcli" placeholder="ex.: 14466 — ou digite o nome" autocomplete="off">
+      <div id="sug"></div>
+    </div>
+    <button class="btn" id="btnAnalisar" onclick="analisar()">Analisar Cliente</button>
+    <div style="flex:1"></div>
+    <div id="stbase" style="font-size:.68rem;color:var(--mut)"></div>
+  </div>
+
+  <div id="painel" class="hid">
+    <div class="exec" id="exec"></div>
+
+    <div class="grid g2">
+      <div class="card"><h2>👤 Perfil 360°</h2><div id="perfil"></div></div>
+      <div class="card"><h2>📈 Histórico e evolução <small>valor faturado por mês</small></h2>
+        <div id="serie"></div><div id="kpisEvo" class="kpis" style="margin-top:10px"></div></div>
+    </div>
+
+    <div class="card" style="margin-top:16px"><h2>🧬 Clusters do cliente <small>classificações independentes</small></h2>
+      <div class="chips" id="clusters"></div></div>
+
+    <div class="grid g3">
+      <div class="card"><h2>Categoria & Grupo</h2><div id="dnaCat"></div></div>
+      <div class="card"><h2>Marca & Linha</h2><div id="dnaMarca"></div></div>
+      <div class="card"><h2>Família</h2><div id="dnaFam"></div></div>
+      <div class="card"><h2>Tamanhos</h2><div id="dnaTam"></div></div>
+      <div class="card"><h2>Faixa de preço</h2><div id="dnaFaixa"></div></div>
+      <div class="card"><h2>Cores</h2><div id="dnaCor"></div></div>
+    </div>
+
+    <div class="grid g2">
+      <div class="card"><h2>🗓 Sazonalidade & ritmo</h2><div id="dnaSaz"></div></div>
+      <div class="card"><h2>🎨 Perfil estético</h2><div id="estetica"></div></div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h2>✨ Coleção nova <small>selecione para gerar as sugestões</small></h2>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <select id="selColecao" style="border:1.5px solid var(--line);border-radius:12px;padding:10px 14px;font-family:inherit;font-size:.9rem"></select>
+        <button class="btn" id="btnRec" onclick="recomendar()">Gerar sugestões</button>
+        <span id="recInfo" style="font-size:.74rem;color:var(--mut)"></span>
+      </div>
+    </div>
+
+    <div id="recs"></div>
+  </div>
+</div>
+
+<div class="foot" id="foot">
+  <div class="f">Sugerido<b id="fSug">—</b></div>
+  <div class="f">Aceito + alterado<b id="fAce" style="color:var(--ok)">—</b></div>
+  <div class="f">Itens decididos<b id="fDec">—</b></div>
+  <div style="flex:1"></div>
+  <div class="f" style="max-width:420px">Resumo do pedido sugerido — os valores usam preço de tabela e a grade calculada pelo motor analítico.</div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const brl=v=>'R$ '+Math.round(v||0).toLocaleString('pt-BR');
+const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+let CLI=null, REC=null, DECISOES={};
+
+async function api(path,opt){
+  const r=await fetch(path,opt);
+  if(r.status===401){location.href='/';throw new Error('sessão expirada')}
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
+  return j;
+}
+
+// ---- status da base + coleções ----
+(async()=>{
+  try{
+    const st=await api('/api/intel/status');
+    $('stbase').innerHTML=`Base analítica: <b>${st.contagens.pedidos.toLocaleString('pt-BR')}</b> pedidos · `+
+      `<b>${st.contagens.produtos.toLocaleString('pt-BR')}</b> produtos · `+
+      `<b>${st.contagens.pedidos_com_itens.toLocaleString('pt-BR')}</b> pedidos com itens${st.excia_configurado?'':' · <span style="color:var(--bad)">EXCIA offline</span>'}`;
+  }catch(e){$('stbase').textContent='status indisponível: '+e.message}
+  try{
+    const cols=await api('/api/intel/colecoes');
+    $('selColecao').innerHTML=cols.map(c=>`<option value="${esc(c.codigo)}">${esc(c.descricao)} · ${c.produtos} produtos</option>`).join('');
+  }catch(e){}
+})();
+
+// ---- autocomplete ----
+let tAc=null;
+$('codcli').addEventListener('input',()=>{
+  clearTimeout(tAc);
+  const q=$('codcli').value.trim();
+  if(q.length<2||/^\d+$/.test(q)){$('sug').style.display='none';return}
+  tAc=setTimeout(async()=>{
+    try{
+      const rows=await api('/api/intel/clientes?q='+encodeURIComponent(q));
+      $('sug').innerHTML=rows.map(r=>`<div onclick="escolher('${esc(r.codcli)}')"><b>${esc(r.codcli)}</b> · ${esc(r.nome)}<span style="color:var(--mut)"> — ${esc(r.cidade)}/${esc(r.uf)}</span></div>`).join('');
+      $('sug').style.display=rows.length?'block':'none';
+    }catch(e){}
+  },250);
+});
+function escolher(c){$('codcli').value=c;$('sug').style.display='none';analisar()}
+document.addEventListener('click',e=>{if(!e.target.closest('.busca'))$('sug').style.display='none'});
+$('codcli').addEventListener('keydown',e=>{if(e.key==='Enter')analisar()});
+
+// ---- análise ----
+async function analisar(){
+  const cod=$('codcli').value.trim().replace(/\D.*$/,'');
+  if(!cod)return;
+  const b=$('btnAnalisar');b.disabled=true;b.innerHTML='<span class="spin"></span> Analisando…';
+  try{
+    const d=await api('/api/intel/cliente/'+encodeURIComponent(cod));
+    CLI=d;REC=null;DECISOES={};$('recs').innerHTML='';$('foot').style.display='none';
+    render(d);
+    $('painel').classList.remove('hid');
+    window.scrollTo({top:0,behavior:'smooth'});
+  }catch(e){alert('Não foi possível analisar: '+e.message)}
+  b.disabled=false;b.textContent='Analisar Cliente';
+}
+
+function barras(el,lista,max=8){
+  if(!lista||!lista.length){$(el).innerHTML='<div style="color:var(--mut);font-size:.8rem">Sem dados de itens sincronizados.</div>';return}
+  $(el).innerHTML=lista.slice(0,max).map(s=>`<div class="bar"><span title="${esc(s.chave)}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.chave)}</span><div class="tr"><div class="fill" style="width:${Math.min(s.pct,100)}%"></div></div><span class="pc">${s.pct}%</span></div>`).join('');
+}
+
+function render(d){
+  const p=d.perfil, dna=d.dna;
+  const evo=p.evolucao_12m_pct;
+  const evoTx=evo===null?'sem base de comparação':`${evo>=0?'+':''}${evo}% vs 12m anteriores`;
+  const cob=dna?`${dna.cobertura.pedidos_com_itens} de ${dna.cobertura.pedidos_total} pedidos com itens analisados`:'itens ainda não sincronizados';
+  $('exec').innerHTML=`<b>${esc(p.nome)}</b> (${esc(p.codcli)}) — ${esc(p.cidade)}/${esc(p.uf)} · atendido por <b>${esc(p.representante.nome)}</b>.
+    Cliente há <b>${p.anos_relacionamento??'?'} anos</b>, <b>${p.qtd_pedidos}</b> pedidos e <b>${brl(p.valor_historico)}</b> comprados
+    (ticket médio ${brl(p.ticket_medio)}). Últimos 12 meses: <b>${brl(p.valor_12m)}</b> (${evoTx}).
+    <span style="color:var(--mut)">${cob}.</span>`;
+
+  $('perfil').innerHTML=[
+    ['Código',p.codcli],['Nome',p.nome],['Fantasia',p.fantasia||'—'],
+    ['Cidade/UF',`${p.cidade}/${p.uf}`],['Representante',p.representante.nome],
+    ['Data de cadastro',p.data_cadastro?p.data_cadastro.split('-').reverse().join('/'):'—'],
+    ['Tempo de relacionamento',p.anos_relacionamento!==null?p.anos_relacionamento+' anos':'—'],
+    ['Pedidos (histórico)',`${p.qtd_pedidos} (${p.qtd_pedidos_faturados} faturados)`],
+    ['Valor histórico',brl(p.valor_historico)],['Ticket médio',brl(p.ticket_medio)],
+    ['Último pedido',p.ultimo_pedido?`${p.ultimo_pedido.data.split('-').reverse().join('/')} · ${brl(p.ultimo_pedido.valor)}`:'—'],
+    ['Frequência média',p.frequencia_media_dias?`a cada ${p.frequencia_media_dias} dias`:'—'],
+    ['Condição predominante',p.condicao_predominante.trim()||'—'],
+  ].map(([k,v])=>`<div class="fact"><span style="color:var(--mut)">${k}</span><b>${esc(v)}</b></div>`).join('');
+
+  // série mensal SVG
+  const s=p.serie_mensal||[];
+  if(s.length){
+    const W=520,H=150,mx=Math.max(...s.map(x=>x.valor),1),bw=W/s.length;
+    $('serie').innerHTML=`<svg viewBox="0 0 ${W} ${H+22}" style="width:100%">`+
+      s.map((x,i)=>{const h=Math.max(x.valor/mx*H,2);return `<rect x="${(i*bw+2).toFixed(1)}" y="${(H-h).toFixed(1)}" width="${(bw-4).toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="#2563EB" opacity="${.45+.55*(i/s.length)}"><title>${x.mes}: ${brl(x.valor)}</title></rect>`+
+      (i%Math.ceil(s.length/8)===0?`<text x="${(i*bw+bw/2).toFixed(1)}" y="${H+15}" font-size="9" fill="#6b7280" text-anchor="middle">${x.mes.slice(2).replace('-','/')}</text>`:'')}).join('')+`</svg>`;
+  }else $('serie').innerHTML='<div style="color:var(--mut);font-size:.8rem">Sem faturamento no período.</div>';
+  $('kpisEvo').innerHTML=`
+    <div class="kpi"><div class="l">Últimos 12m</div><div class="v">${brl(p.valor_12m)}</div></div>
+    <div class="kpi"><div class="l">12m anteriores</div><div class="v">${brl(p.valor_12m_anterior)}</div></div>
+    <div class="kpi"><div class="l">Evolução</div><div class="v" style="color:${evo>=0?'var(--ok)':'var(--bad)'}">${evo===null?'—':(evo>=0?'+':'')+evo+'%'}</div></div>`;
+
+  $('clusters').innerHTML=(d.clusters||[]).map(c=>`<div class="chip"><b>${esc(c.cluster)}</b><small>${esc(c.dimensao)} · ${esc(c.base)}</small></div>`).join('')||'<span style="color:var(--mut);font-size:.8rem">Sem dados suficientes.</span>';
+
+  barras('dnaCat',dna?.participacao.categoria);
+  barras('dnaMarca',dna?[...dna.participacao.marca.slice(0,4),...dna.participacao.linha.slice(0,4).map(x=>({...x,chave:'Linha · '+x.chave}))]:null);
+  barras('dnaFam',dna?.participacao.familia);
+  barras('dnaTam',dna?.distribuicao.tamanho,10);
+  barras('dnaFaixa',dna?.distribuicao.faixa_preco.map(f=>({chave:f.chave,pct:f.pct})),6);
+  barras('dnaCor',dna?.distribuicao.cor,8);
+
+  if(dna){
+    const MESES={'01':'jan','02':'fev','03':'mar','04':'abr','05':'mai','06':'jun','07':'jul','08':'ago','09':'set','10':'out','11':'nov','12':'dez'};
+    barras('dnaSaz',[...dna.sazonalidade.por_mes].sort((a,b)=>a.chave.localeCompare(b.chave)).map(m=>({chave:MESES[m.chave]||m.chave,pct:m.pct})),12);
+    $('dnaSaz').innerHTML+=`<div class="fact" style="margin-top:8px"><span style="color:var(--mut)">Peças/pedido · peças/produto</span><b>${dna.qtd_media_por_pedido} · ${dna.qtd_tipica_por_produto}</b></div>
+      <div class="fact"><span style="color:var(--mut)">Ticket médio por peça</span><b>R$ ${dna.ticket_medio_produto}</b></div>
+      <div class="fact"><span style="color:var(--mut)">Recência</span><b>${dna.recencia_dias!==null?dna.recencia_dias+' dias':'—'}</b></div>`;
+  } else $('dnaSaz').innerHTML='<div style="color:var(--mut);font-size:.8rem">Sem itens sincronizados.</div>';
+
+  const est=d.estetica;
+  $('estetica').innerHTML=est?est.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')+
+    (d.semelhantes?.length?`<div style="font-size:.72rem;color:var(--mut);margin-top:12px"><b>Clientes semelhantes:</b> ${d.semelhantes.map(s=>`${esc(s.nome.split(' ').slice(0,2).join(' '))} (${s.similaridade}%)`).join(' · ')}</div>`:'')
+    :'<div style="color:var(--mut);font-size:.8rem">Sem itens sincronizados.</div>';
+}
+
+// ---- recomendações ----
+async function recomendar(){
+  if(!CLI)return;
+  const col=$('selColecao').value;
+  const b=$('btnRec');b.disabled=true;b.innerHTML='<span class="spin"></span> Calculando…';
+  try{
+    REC=await api(`/api/intel/cliente/${encodeURIComponent(CLI.perfil.codcli)}/recomendacoes?colecao=${encodeURIComponent(col)}`);
+    DECISOES={};
+    renderRecs();
+  }catch(e){$('recs').innerHTML=`<div class="aviso">${esc(e.message)}</div>`}
+  b.disabled=false;b.textContent='Gerar sugestões';
+}
+
+const TIPOS={ESSENCIAL:{t:'🎯 Compra Essencial',d:'Elevada aderência ao histórico do cliente — o núcleo do pedido.',c:'#059669'},
+EXPANSAO:{t:'📈 Expansão',d:'Próximos ao DNA existente; ampliam o mix com risco controlado.',c:'#2563EB'},
+OPORTUNIDADE:{t:'💡 Oportunidade',d:'Boa performance entre clientes semelhantes, ainda ausentes do histórico individual.',c:'#d97706'}};
+
+function scoreCor(s){return s>=70?'#059669':s>=50?'#d97706':'#94a3b8'}
+
+function renderRecs(){
+  const r=REC;
+  $('recInfo').textContent=`${r.resumo.total_recomendado} sugestões · base: ${r.resumo.clientes_com_historico_na_colecao} clientes com histórico na coleção · ${r.resumo.clientes_semelhantes_considerados} semelhantes considerados`;
+  let html='';
+  for(const tipo of ['ESSENCIAL','EXPANSAO','OPORTUNIDADE']){
+    const lst=r.recomendacoes[tipo]||[];
+    if(!lst.length)continue;
+    const m=TIPOS[tipo];
+    html+=`<div class="secRec"><h2 style="color:${m.c}">${m.t} <small style="color:var(--mut);font-weight:400">· ${lst.length} produtos · ${brl(r.financeiro[tipo])}</small></h2><p>${m.d}</p><div class="prods">`;
+    for(const p of lst){
+      const key=tipo+'|'+p.codigo;
+      html+=`<div class="prod" id="card-${cssId(key)}">
+        <div class="hd">
+          <img src="/api/intel/imagem/${encodeURIComponent(p.codigo)}" loading="lazy" onerror="this.outerHTML='<div class=noimg>sem foto</div>'">
+          <div class="inf">
+            <div class="cod">${esc(p.codigo)}</div>
+            <div class="nm">${esc(p.descricao)}</div>
+            <div class="mt">${esc(p.marca)} · ${esc(p.grupo)} · ${esc(p.linha)}${p.familia?' · '+esc(p.familia):''}</div>
+            <div class="pr">R$ ${p.preco_tabela.toFixed(2)} <span style="font-size:.66rem;color:var(--mut);font-weight:400">${esc(p.faixa_preco)}</span></div>
+          </div>
+          <div class="score" style="background:${scoreCor(p.score)}">${p.score}<small>score</small></div>
+        </div>
+        <div class="just">${esc(p.justificativa)}</div>
+        <div class="grade">
+          <table><tr>${p.grade.por_tamanho.map(g=>`<th>${esc(g.tam)}</th>`).join('')}</tr>
+          <tr>${p.grade.por_tamanho.map(g=>`<td><input type="number" min="0" value="${g.qtd}" data-key="${esc(key)}" data-tam="${esc(g.tam)}" onchange="mudouGrade('${esc(key)}')"></td>`).join('')}</tr>
+          <tr>${p.grade.por_tamanho.map(g=>`<td style="color:var(--mut);font-size:.62rem">${g.pct}%</td>`).join('')}</tr></table>
+          <div class="tot"><span id="tot-${cssId(key)}">${p.grade.qtd_total} pç</span><span id="val-${cssId(key)}">${brl(p.grade.valor_estimado)}</span></div>
+        </div>
+        <div class="acts" id="acts-${cssId(key)}">
+          <button class="btn ok mini" onclick="decidir('${esc(key)}','aceito')">Aceitar</button>
+          <button class="btn mini" onclick="decidir('${esc(key)}','alterado')">Salvar alteração</button>
+          <button class="btn bad mini" onclick="decidir('${esc(key)}','rejeitado')">Rejeitar</button>
+        </div>
+      </div>`;
+    }
+    html+='</div></div>';
+  }
+  $('recs').innerHTML=html||'<div class="aviso">Nenhum produto atingiu os critérios mínimos de aderência.</div>';
+  $('foot').style.display='flex';
+  atualizaFoot();
+}
+const cssId=k=>k.replace(/[^a-zA-Z0-9]/g,'_');
+
+function acharRec(key){
+  const [tipo,cod]=key.split('|');
+  return (REC.recomendacoes[tipo]||[]).find(p=>p.codigo===cod);
+}
+function gradeAtual(key){
+  const inputs=document.querySelectorAll(`input[data-key="${CSS.escape(key)}"]`);
+  return [...inputs].map(i=>({tam:i.dataset.tam,qtd:Math.max(0,Number(i.value)||0)}));
+}
+function mudouGrade(key){
+  const p=acharRec(key);if(!p)return;
+  const g=gradeAtual(key);
+  const tot=g.reduce((s,x)=>s+x.qtd,0);
+  $('tot-'+cssId(key)).textContent=tot+' pç';
+  $('val-'+cssId(key)).textContent=brl(tot*p.preco_tabela);
+}
+async function decidir(key,acao){
+  const p=acharRec(key);if(!p)return;
+  const g=gradeAtual(key);
+  const tot=g.reduce((s,x)=>s+x.qtd,0);
+  const mudou=JSON.stringify(g)!==JSON.stringify(p.grade.por_tamanho.map(x=>({tam:x.tam,qtd:x.qtd})));
+  const acaoFinal=acao==='aceito'&&mudou?'alterado':acao;
+  try{
+    await api('/api/intel/feedback',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
+      codcli:CLI.perfil.codcli, colecao:REC.resumo.colecao, codigo:p.codigo,
+      sugestao:{tipo:key.split('|')[0],score:p.score,qtd_total:p.grade.qtd_total,grade:p.grade.por_tamanho,valor:p.grade.valor_estimado},
+      acao:acaoFinal,
+      alteracao:acaoFinal==='rejeitado'?null:{grade:g,qtd_total:tot,valor:tot*p.preco_tabela},
+    })});
+    DECISOES[key]={acao:acaoFinal,valor:acaoFinal==='rejeitado'?0:tot*p.preco_tabela};
+    $('acts-'+cssId(key)).innerHTML=`<div class="st ${acaoFinal}">${acaoFinal==='aceito'?'✓ Aceito':acaoFinal==='alterado'?'✎ Alterado e registrado':'✕ Rejeitado'}</div>
+      <button class="btn ghost mini" onclick="reabrir('${esc(key)}')">Desfazer</button>`;
+    atualizaFoot();
+  }catch(e){alert('Falha ao registrar: '+e.message)}
+}
+function reabrir(key){
+  delete DECISOES[key];
+  $('acts-'+cssId(key)).innerHTML=`
+    <button class="btn ok mini" onclick="decidir('${esc(key)}','aceito')">Aceitar</button>
+    <button class="btn mini" onclick="decidir('${esc(key)}','alterado')">Salvar alteração</button>
+    <button class="btn bad mini" onclick="decidir('${esc(key)}','rejeitado')">Rejeitar</button>`;
+  atualizaFoot();
+}
+function atualizaFoot(){
+  if(!REC)return;
+  $('fSug').textContent=brl(REC.financeiro.total);
+  const dec=Object.values(DECISOES);
+  $('fAce').textContent=brl(dec.reduce((s,d)=>s+d.valor,0));
+  $('fDec').textContent=dec.length+' de '+REC.resumo.total_recomendado;
+}
+</script>
+</body>
+</html>

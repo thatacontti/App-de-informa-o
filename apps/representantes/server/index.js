@@ -13,6 +13,8 @@ import { api } from './routes/api.js';
 import { requireAuth, requireAuthPage, requireRole, isDiretoria } from './auth.js';
 import { seed } from './seed.js';
 import { painelDisponivel, resolveRepNome, listRepsPainel, buildPainelRep } from './lib/painelRep.js';
+import { intel } from './routes/intel.js';
+import { agendarSync } from './lib/intelSync.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
@@ -41,6 +43,7 @@ app.use(express.json({ limit: '25mb' })); // fotos base64 na prescrição
 
 // ---- API ----
 app.use('/api', api);
+app.use('/api/intel', intel);
 
 // ---- estáticos ----
 app.use('/assets', express.static(path.join(PUBLIC, 'assets'), { maxAge: '7d' }));
@@ -88,6 +91,10 @@ app.get(['/formulario', '/formulario.html'], (req, res) =>
 // Painel de coleção completo.
 app.get(['/colecao', '/painel-colecao', '/painel_colecao.html'], (req, res) =>
   renderView(res, 'painel_colecao.html', {}));
+
+// Inteligência de Compra e Sugestão de Pedido (página Inteligência do Cliente).
+app.get(['/inteligencia', '/inteligencia.html'], requireAuthPage, (req, res) =>
+  renderView(res, 'inteligencia.html', {}));
 
 // Painel V27 POR REPRESENTANTE (M1): recorte segregado no servidor.
 // Representante abre o próprio; diretoria/gestão escolhe via ?rep= (picker sem parâmetro).
@@ -156,4 +163,5 @@ app.use((req, res) => res.status(404).type('text').send('404'));
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[gc-representantes] no ar em http://0.0.0.0:${PORT}  (EXCIA_MODE=${process.env.EXCIA_MODE || 'file'})`);
+  agendarSync(); // Inteligência de Compra: sync EXCIA inicial + diário
 });

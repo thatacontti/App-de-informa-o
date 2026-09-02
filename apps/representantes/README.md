@@ -9,6 +9,34 @@ Análise da Ação com **motor de recomendação**, fluxo de **aprovações**,
 > que **segrega a carteira no servidor** — cada representante vê apenas os
 > próprios clientes. Ver a especificação completa em `CLAUDE_SPEC.md`.
 
+## Inteligência de Compra e Sugestão de Pedido (`/inteligencia`)
+
+Página **Inteligência do Cliente**: informe o código do cliente e o sistema
+monta o dashboard com Perfil 360°, DNA de Compra, multiclusterização,
+histórico/evolução, perfil estético e — para a coleção selecionada —
+recomendações **Compra Essencial / Expansão / Oportunidade** com score de
+aderência 0-100, grade sugerida por tamanho e resumo financeiro.
+
+- **Fonte oficial: API REST do ERP EXCIA** (doc intranet.excia.com.br/api).
+  Endpoints usados: `EntidadeLista`, `BuscarEntidade`, `PedidoLista`,
+  `BuscarPedido` (itens), `ProdutoLista`, `BuscarPreco`, `CarregaImagemProduto`
+  e catálogos (`GrupoLista`, `SubGrupoLista`, `MarcaLista`, `LinhaLista`,
+  `FamiliaLista`, `CorLista`, `ColecaoLista`, `CondicaoLista`, `Tamanho`).
+- **Banco analítico** próprio (`db/analitico.sqlite`): espelho histórico +
+  feedback do representante (aceito/alterado/rejeitado, com a sugestão
+  original — alimenta a avaliação futura do recomendador).
+- **Cache e sincronização**: catálogos/clientes/produtos/pedidos com carga
+  completa + incremental diária (04:15); itens de pedido sob demanda por
+  cliente (1 chamada `BuscarPedido` por pedido, uma única vez); imagens de
+  produto cacheadas no banco. Cliente HTTP com timeout, tratamento de 429
+  respeitando `Retry-After`/`X-RateLimit-*` e paginação (fim = HTTP 400).
+- **Segurança**: URL/porta/token da EXCIA só em variáveis de ambiente do
+  backend; o frontend consome apenas `/api/intel/*` autenticado, com
+  segregação por carteira (rep só analisa os próprios clientes).
+- **Números nunca vêm de IA**: score, quantidades, grade, percentuais e
+  valores são todos calculados pelo motor (`server/lib/intelMotor.js`);
+  a justificativa textual cita exclusivamente esses números.
+
 ---
 
 ## Stack
