@@ -46,6 +46,26 @@ async function enriquecerCadastro(codcli) {
   } catch { /* enriquecimento é best-effort */ }
 }
 
+// Resolve o código do cliente de forma tolerante: aceita com ou sem zeros à
+// esquerda (na base o codcli é zero-preenchido, ex.: "09032"). Reescreve
+// req.params.codcli para o valor canônico encontrado.
+function resolverCodcli(req, res, next) {
+  const bruto = String(req.params.codcli || '').trim();
+  if (!bruto) return res.status(400).json({ error: 'informe o código do cliente' });
+  const candidatos = [bruto];
+  if (/^\d+$/.test(bruto)) {
+    candidatos.push(bruto.padStart(5, '0'));       // 9032 -> 09032
+    candidatos.push(String(Number(bruto)));         // 09032 -> 9032
+    candidatos.push(bruto.replace(/^0+/, ''));      // remove zeros à esquerda
+  }
+  for (const c of candidatos) {
+    const achou = idb.prepare('SELECT 1 FROM clientes_ex WHERE codcli=? UNION SELECT 1 FROM pedidos WHERE codcli=? LIMIT 1')
+      .get(c, c);
+    if (achou) { req.params.codcli = c; return next(); }
+  }
+  return res.status(404).json({ error: `cliente ${bruto} não encontrado na base analítica` });
+}
+
 function podeVer(req, res, next) {
   const { codcli } = req.params;
   if (isDiretoria(req.user) || repEhDono(req.user, codcli)) return next();
@@ -112,7 +132,7 @@ intel.get('/clientes', (req, res) => {
 });
 
 // ---- análise do cliente --------------------------------------------------
-intel.get('/cliente/:codcli', podeVer, async (req, res) => {
+intel.get('/cliente/:codcli', resolverCodcli, podeVer, async (req, res) => {
   const { codcli } = req.params;
   try {
     // Cache-first: sincroniza itens pendentes deste cliente (1 chamada/pedido,
@@ -149,7 +169,7 @@ intel.get('/cliente/:codcli', podeVer, async (req, res) => {
   }
 });
 
-intel.get('/cliente/:codcli/recomendacoes', podeVer, (req, res) => {
+intel.get('/cliente/:codcli/recomendacoes', resolverCodcli, podeVer, (req, res) => {
   const { codcli } = req.params;
   const colecao = String(req.query.colecao || '').trim();
   if (!colecao) return res.status(400).json({ error: 'informe ?colecao=' });
