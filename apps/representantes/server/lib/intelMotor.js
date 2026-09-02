@@ -69,13 +69,17 @@ export function perfil360(codcli) {
   ).all(String(codcli));
   if (!cli && !peds.length) return null;
 
+  // Valor comprado = pedidos com valor (inclui pendentes; a EXCIA só fatura
+  // depois, e a sugestão de compra olha o comportamento, não só o já faturado).
+  const comprados = peds.filter((p) => p.valor_liq > 0);
   const fat = peds.filter((p) => p.situacao === 'F' && p.valor_liq > 0);
-  const valorHist = fat.reduce((s, p) => s + p.valor_liq, 0);
-  const ticket = fat.length ? valorHist / fat.length : 0;
+  const valorHist = comprados.reduce((s, p) => s + p.valor_liq, 0);
+  const ticket = comprados.length ? valorHist / comprados.length : 0;
   const ultimo = peds.length ? peds[peds.length - 1] : null;
 
-  // Frequência: dias médios entre pedidos.
-  const datas = peds.map((p) => p.dt_emissao).filter(Boolean).sort();
+  // Frequência: dias medianos entre DATAS DISTINTAS de pedido (um pedido pode
+  // vir fatiado em vários números na mesma data).
+  const datas = [...new Set(peds.map((p) => p.dt_emissao).filter(Boolean))].sort();
   let freqDias = null;
   if (datas.length >= 2) {
     const difs = [];
@@ -85,15 +89,24 @@ export function perfil360(codcli) {
     freqDias = Math.round(mediana(difs));
   }
 
-  // Evolução: últimos 12 meses vs 12 anteriores (valor faturado).
+  // Evolução: últimos 12 meses vs 12 anteriores em PEÇAS (robusto a lacunas de
+  // preço — coleções novas entram sem preço, o que zeraria a evolução em R$).
   const agora = Date.now();
-  const v12 = fat.filter((p) => agora - new Date(p.dt_emissao) < 365 * 86400000)
+  const pecasPorJanela = idb.prepare(`
+    SELECT
+      SUM(CASE WHEN p.dt_emissao >= date('now','-365 days') THEN (i.qtde+i.faturado) ELSE 0 END) q12,
+      SUM(CASE WHEN p.dt_emissao <  date('now','-365 days') AND p.dt_emissao >= date('now','-730 days') THEN (i.qtde+i.faturado) ELSE 0 END) q24
+    FROM pedido_itens i JOIN pedidos p ON p.numero=i.numero WHERE p.codcli=?`).get(String(codcli));
+  const q12 = pecasPorJanela?.q12 || 0;
+  const q24 = pecasPorJanela?.q24 || 0;
+  const evolucaoPct = q24 > 0 ? round1(((q12 - q24) / q24) * 100) : null;
+  // Valor 12m/24m (comprado) — informativo, pode subestimar em coleção nova.
+  const v12 = comprados.filter((p) => agora - new Date(p.dt_emissao) < 365 * 86400000)
     .reduce((s, p) => s + p.valor_liq, 0);
-  const v24 = fat.filter((p) => {
+  const v24 = comprados.filter((p) => {
     const d = agora - new Date(p.dt_emissao);
     return d >= 365 * 86400000 && d < 730 * 86400000;
   }).reduce((s, p) => s + p.valor_liq, 0);
-  const evolucaoPct = v24 > 0 ? round1(((v12 - v24) / v24) * 100) : null;
 
   // Condição de pagamento predominante (moda do campo pgto dos pedidos).
   const modaPgto = {};
@@ -112,7 +125,7 @@ export function perfil360(codcli) {
 
   // Série mensal (24m) para o gráfico de evolução.
   const porMes = {};
-  for (const p of fat) {
+  for (const p of comprados) {
     const mes = (p.dt_emissao || '').slice(0, 7);
     if (mes) porMes[mes] = (porMes[mes] || 0) + p.valor_liq;
   }
@@ -134,6 +147,8 @@ export function perfil360(codcli) {
     ultimo_pedido: ultimo ? { numero: ultimo.numero, data: ultimo.dt_emissao, valor: Math.round(ultimo.valor_liq) } : null,
     frequencia_media_dias: freqDias,
     evolucao_12m_pct: evolucaoPct,
+    evolucao_base: 'pecas',
+    pecas_12m: Math.round(q12), pecas_12m_anterior: Math.round(q24),
     valor_12m: Math.round(v12), valor_12m_anterior: Math.round(v24),
     condicao_predominante: condicao,
     serie_mensal: serieMensal,
@@ -374,10 +389,12 @@ export function clientesSemelhantes(codcli, topK = 20) {
 // ---------------------------------------------------------------------------
 // Recomendação para a coleção nova
 // ---------------------------------------------------------------------------
+// Normaliza participações para 0..1 dividindo pelo MAIOR pct (a lista pode não
+// estar ordenada por pct — ex.: faixa de preço vem em ordem de faixa).
 const normalizaShares = (lista) => {
-  const max = lista[0]?.pct || 0;
+  const max = Math.max(0, ...lista.map((s) => s.pct || 0));
   const m = {};
-  for (const s of lista) m[s.chave] = max ? s.pct / max : 0;
+  for (const s of lista) m[s.chave] = max ? Math.min((s.pct || 0) / max, 1) : 0;
   return m;
 };
 
@@ -432,7 +449,14 @@ export function recomendarColecao(codcli, colecao, { topPorTipo = 15 } = {}) {
     SELECT DISTINCT i.codigo FROM pedido_itens i JOIN pedidos p ON p.numero=i.numero WHERE p.codcli=?
   `).all(String(codcli)).map((r) => r.codigo));
 
-  const PESOS = { grupo: 0.20, marca: 0.15, linha: 0.10, familia: 0.05, preco: 0.15, cor: 0.10, tam: 0.10, pop: 0.15 };
+  // Se a coleção ainda não tem adoção (lançamento — ninguém pediu), o peso de
+  // popularidade e o de cor (produtos novos sem histórico de cor) são
+  // redistribuídos entre os fatores de fit histórico, senão o score teria teto
+  // artificialmente baixo e nada chegaria a "Essencial".
+  const temAdocao = cliColecao > 0 || simSet.size > 0;
+  const PESOS = temAdocao
+    ? { grupo: 0.20, marca: 0.15, linha: 0.10, familia: 0.05, preco: 0.15, cor: 0.10, tam: 0.10, pop: 0.15 }
+    : { grupo: 0.28, marca: 0.22, linha: 0.14, familia: 0.06, preco: 0.18, cor: 0.00, tam: 0.12, pop: 0.00 };
 
   const avaliados = produtos.map((pr) => {
     const cores = JSON.parse(pr.cores || '[]');
@@ -452,8 +476,8 @@ export function recomendarColecao(codcli, colecao, { topPorTipo = 15 } = {}) {
       pop: adSim.get(pr.codigo) ?? adocao.get(pr.codigo) ?? 0,
     };
     let score = 0;
-    for (const [k, w] of Object.entries(PESOS)) score += comp[k] * w;
-    return { pr, comp, score: Math.round(score * 100) };
+    for (const [k, w] of Object.entries(PESOS)) score += Math.min(comp[k], 1) * w;
+    return { pr, comp, score: Math.max(0, Math.min(Math.round(score * 100), 100)) };
   });
 
   const popVals = avaliados.map((a) => a.comp.pop).sort((a, b) => a - b);
@@ -461,9 +485,10 @@ export function recomendarColecao(codcli, colecao, { topPorTipo = 15 } = {}) {
 
   const tipoDe = (a) => {
     const histCore = a.comp.grupo >= 0.5 && a.comp.marca >= 0.5;
-    if (a.score >= 70 && histCore) return 'ESSENCIAL';
-    if (a.comp.pop >= Math.max(popP75, 0.15) && a.comp.grupo < 0.35 && !jaComprou.has(a.pr.codigo)) return 'OPORTUNIDADE';
-    if (a.score >= 40) return 'EXPANSAO';
+    // OPORTUNIDADE: forte entre semelhantes/na coleção, fora do núcleo histórico.
+    if (temAdocao && a.comp.pop >= Math.max(popP75, 0.15) && a.comp.grupo < 0.35 && !jaComprou.has(a.pr.codigo)) return 'OPORTUNIDADE';
+    if (a.score >= 65 && histCore) return 'ESSENCIAL';
+    if (a.score >= 38) return 'EXPANSAO';
     return null;
   };
 

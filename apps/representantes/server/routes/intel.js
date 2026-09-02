@@ -6,6 +6,7 @@ import { requireAuth, requireRole, isDiretoria } from '../auth.js';
 import { idb } from '../lib/intelDb.js';
 import { exciaGet, exciaConfigurado } from '../lib/exciaClient.js';
 import { syncGeral, syncItensDoCliente, statusSync } from '../lib/intelSync.js';
+import { firebirdConfigurado, fbPing } from '../lib/firebirdClient.js';
 import {
   perfil360, dnaCompra, clusters, recomendarColecao, perfilEstetico, clientesSemelhantes,
 } from '../lib/intelMotor.js';
@@ -25,6 +26,26 @@ const repEhDono = (user, codcli) => {
   return n > 0;
 };
 
+// Completa cidade/UF/cadastro do cliente via REST BuscarEntidade (uma vez).
+async function enriquecerCadastro(codcli) {
+  if (!exciaConfigurado()) return;
+  const c = idb.prepare('SELECT cidade, cnpj FROM clientes_ex WHERE codcli=?').get(String(codcli));
+  if (!c || (c.cidade && c.cidade.trim())) return; // já enriquecido
+  if (!c.cnpj) return;
+  try {
+    const regs = await exciaGet('BuscarEntidade', { cnpj: c.cnpj });
+    const e = Array.isArray(regs) ? regs[0] : null;
+    if (e) {
+      idb.prepare(`UPDATE clientes_ex SET cidade=?, uf=?,
+        data_cad=COALESCE(data_cad,?), raw=? WHERE codcli=?`).run(
+        e.nome_cid || '', e.cod_est || '',
+        (() => { const m = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(e.data_cad || ''); return m ? `${m[3]}-${m[2]}-${m[1]}` : null; })(),
+        JSON.stringify(e), String(codcli),
+      );
+    }
+  } catch { /* enriquecimento é best-effort */ }
+}
+
 function podeVer(req, res, next) {
   const { codcli } = req.params;
   if (isDiretoria(req.user) || repEhDono(req.user, codcli)) return next();
@@ -40,7 +61,22 @@ intel.get('/status', (req, res) => {
     itens: idb.prepare('SELECT COUNT(*) c FROM pedido_itens').get().c,
     produtos: idb.prepare('SELECT COUNT(*) c FROM produtos').get().c,
   };
-  res.json({ excia_configurado: exciaConfigurado(), contagens, sync: statusSync() });
+  res.json({
+    excia_configurado: exciaConfigurado(),
+    firebird_configurado: firebirdConfigurado(),
+    fonte: (process.env.INTEL_SOURCE || (firebirdConfigurado() ? 'firebird' : 'rest')).toLowerCase(),
+    contagens, sync: statusSync(),
+  });
+});
+
+// Diagnóstico da conexão direta ao Firebird (admin).
+intel.get('/firebird/ping', requireRole('admin'), async (req, res) => {
+  if (!firebirdConfigurado()) return res.status(503).json({ error: 'Firebird não configurado' });
+  try {
+    res.json(await fbPing());
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
 });
 
 intel.post('/sync', requireRole('admin'), async (req, res) => {
@@ -79,7 +115,9 @@ intel.get('/clientes', (req, res) => {
 intel.get('/cliente/:codcli', podeVer, async (req, res) => {
   const { codcli } = req.params;
   try {
-    // Cache-first: sincroniza itens pendentes deste cliente (1 chamada/pedido, uma vez).
+    // Cache-first: sincroniza itens pendentes deste cliente (1 chamada/pedido,
+    // uma vez). Com a carga Firebird os itens já vêm todos, então isto vira
+    // no-op; segue como enriquecimento/fallback quando algum pedido ficou sem itens.
     let syncInfo = null;
     if (exciaConfigurado()) {
       try {
@@ -87,6 +125,8 @@ intel.get('/cliente/:codcli', podeVer, async (req, res) => {
       } catch (e) {
         syncInfo = { erro: `sincronização parcial: ${e.message}` };
       }
+      // Cidade/UF não vêm na carga em massa do Firebird — completa uma vez via REST.
+      await enriquecerCadastro(codcli);
     }
     const perfil = perfil360(codcli);
     if (!perfil) return res.status(404).json({ error: 'cliente sem cadastro e sem pedidos na base analítica' });

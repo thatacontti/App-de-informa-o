@@ -217,11 +217,11 @@ function barras(el,lista,max=8){
 function render(d){
   const p=d.perfil, dna=d.dna;
   const evo=p.evolucao_12m_pct;
-  const evoTx=evo===null?'sem base de comparação':`${evo>=0?'+':''}${evo}% vs 12m anteriores`;
+  const evoTx=evo===null?'sem base de comparação':`${evo>=0?'+':''}${evo}% em peças vs 12m anteriores`;
   const cob=dna?`${dna.cobertura.pedidos_com_itens} de ${dna.cobertura.pedidos_total} pedidos com itens analisados`:'itens ainda não sincronizados';
   $('exec').innerHTML=`<b>${esc(p.nome)}</b> (${esc(p.codcli)}) — ${esc(p.cidade)}/${esc(p.uf)} · atendido por <b>${esc(p.representante.nome)}</b>.
     Cliente há <b>${p.anos_relacionamento??'?'} anos</b>, <b>${p.qtd_pedidos}</b> pedidos e <b>${brl(p.valor_historico)}</b> comprados
-    (ticket médio ${brl(p.ticket_medio)}). Últimos 12 meses: <b>${brl(p.valor_12m)}</b> (${evoTx}).
+    (ticket médio ${brl(p.ticket_medio)}). Últimos 12 meses: <b>${Math.round(p.pecas_12m||0).toLocaleString('pt-BR')} peças</b> (${evoTx}).
     <span style="color:var(--mut)">${cob}.</span>`;
 
   $('perfil').innerHTML=[
@@ -244,10 +244,11 @@ function render(d){
       s.map((x,i)=>{const h=Math.max(x.valor/mx*H,2);return `<rect x="${(i*bw+2).toFixed(1)}" y="${(H-h).toFixed(1)}" width="${(bw-4).toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="#2563EB" opacity="${.45+.55*(i/s.length)}"><title>${x.mes}: ${brl(x.valor)}</title></rect>`+
       (i%Math.ceil(s.length/8)===0?`<text x="${(i*bw+bw/2).toFixed(1)}" y="${H+15}" font-size="9" fill="#6b7280" text-anchor="middle">${x.mes.slice(2).replace('-','/')}</text>`:'')}).join('')+`</svg>`;
   }else $('serie').innerHTML='<div style="color:var(--mut);font-size:.8rem">Sem faturamento no período.</div>';
+  const nb=v=>Math.round(v||0).toLocaleString('pt-BR');
   $('kpisEvo').innerHTML=`
-    <div class="kpi"><div class="l">Últimos 12m</div><div class="v">${brl(p.valor_12m)}</div></div>
-    <div class="kpi"><div class="l">12m anteriores</div><div class="v">${brl(p.valor_12m_anterior)}</div></div>
-    <div class="kpi"><div class="l">Evolução</div><div class="v" style="color:${evo>=0?'var(--ok)':'var(--bad)'}">${evo===null?'—':(evo>=0?'+':'')+evo+'%'}</div></div>`;
+    <div class="kpi"><div class="l">Peças últimos 12m</div><div class="v">${nb(p.pecas_12m)}</div><div class="s">${brl(p.valor_12m)}</div></div>
+    <div class="kpi"><div class="l">Peças 12m anteriores</div><div class="v">${nb(p.pecas_12m_anterior)}</div><div class="s">${brl(p.valor_12m_anterior)}</div></div>
+    <div class="kpi"><div class="l">Evolução (peças)</div><div class="v" style="color:${evo>=0?'var(--ok)':'var(--bad)'}">${evo===null?'—':(evo>=0?'+':'')+evo+'%'}</div></div>`;
 
   $('clusters').innerHTML=(d.clusters||[]).map(c=>`<div class="chip"><b>${esc(c.cluster)}</b><small>${esc(c.dimensao)} · ${esc(c.base)}</small></div>`).join('')||'<span style="color:var(--mut);font-size:.8rem">Sem dados suficientes.</span>';
 

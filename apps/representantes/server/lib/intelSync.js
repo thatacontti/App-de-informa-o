@@ -8,6 +8,14 @@
 //   itens_ok no cabeçalho — 1 chamada por pedido, uma única vez.
 import { idb, getSync, setSync } from './intelDb.js';
 import { exciaGet, ExciaError, dataExciaParaISO, isoParaDataExcia, exciaConfigurado } from './exciaClient.js';
+import { firebirdConfigurado } from './firebirdClient.js';
+import { syncGeralFB } from './firebirdSync.js';
+
+// Fonte da carga em massa: 'firebird' (SQL direto, rápido) ou 'rest' (API
+// paginada). Catálogos vêm sempre do REST (pequenos). Padrão: firebird quando
+// configurado, senão rest.
+const SOURCE = (process.env.INTEL_SOURCE
+  || (firebirdConfigurado() ? 'firebird' : 'rest')).toLowerCase();
 
 // Paginação com RETOMADA: o progresso (última página gravada) fica em
 // sync_state("<chave>:pag"); se a EXCIA cair no meio (timeout em página
@@ -225,7 +233,13 @@ const delItens = idb.prepare('DELETE FROM pedido_itens WHERE numero=?');
 const insItem = idb.prepare(`INSERT OR REPLACE INTO pedido_itens
   (numero, ordem, codigo, cor, desc_cor, tam, preco, qtde, faturado, cancelado, estampa, desc_estampa)
   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-const markOk = idb.prepare('UPDATE pedidos SET itens_ok=1 WHERE numero=?');
+// Marca itens_ok e recalcula valor/qtde/situação do cabeçalho a partir dos
+// itens recém-inseridos (mantém coerência com a carga Firebird).
+const markOk = idb.prepare(`UPDATE pedidos SET itens_ok=1,
+    valor_liq = COALESCE((SELECT SUM((i.qtde+i.faturado)*i.preco) FROM pedido_itens i WHERE i.numero=pedidos.numero),0),
+    qtde_fat  = COALESCE((SELECT SUM(i.faturado) FROM pedido_itens i WHERE i.numero=pedidos.numero),0),
+    situacao  = CASE WHEN COALESCE((SELECT SUM(i.faturado) FROM pedido_itens i WHERE i.numero=pedidos.numero),0)>0 THEN 'F' ELSE 'P' END
+  WHERE numero=?`);
 
 export async function syncItensDoCliente(codcli, { limite = 200 } = {}) {
   const pendentes = idb.prepare(
@@ -262,16 +276,25 @@ export async function syncItensDoCliente(codcli, { limite = 200 } = {}) {
 let rodando = false;
 
 export async function syncGeral() {
-  if (!exciaConfigurado()) return { erro: 'EXCIA não configurado' };
   if (rodando) return { erro: 'sync já em execução' };
   rodando = true;
   const inicio = Date.now();
-  const resultado = {};
+  const resultado = { fonte: SOURCE };
   try {
-    await syncCatalogos();
-    resultado.clientes = await syncClientes();
-    resultado.produtos = await syncProdutos();
-    resultado.pedidos = await syncPedidos();
+    // Catálogos: sempre do REST (leves e estáveis). Se o REST estiver
+    // indisponível, seguimos com o que já houver em cache.
+    if (exciaConfigurado()) {
+      try { await syncCatalogos(); } catch (e) { resultado.catalogos_erro = e.message; }
+    }
+
+    if (SOURCE === 'firebird') {
+      Object.assign(resultado, await syncGeralFB());
+    } else {
+      if (!exciaConfigurado()) throw new Error('EXCIA REST não configurado');
+      resultado.clientes = await syncClientes();
+      resultado.produtos = await syncProdutos();
+      resultado.pedidos = await syncPedidos();
+    }
     resultado.duracao_s = Math.round((Date.now() - inicio) / 1000);
     setSync('geral', { cursor: hojeISO(), detalhe: JSON.stringify(resultado) });
     return resultado;
