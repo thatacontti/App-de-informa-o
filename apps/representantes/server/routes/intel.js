@@ -8,7 +8,9 @@ import { exciaGet, exciaConfigurado } from '../lib/exciaClient.js';
 import { syncGeral, syncItensDoCliente, statusSync } from '../lib/intelSync.js';
 import { firebirdConfigurado, fbPing } from '../lib/firebirdClient.js';
 import {
-  perfil360, perfilCliente, dnaCompra, clusters, recomendarColecao, recomendarPlano, perfilEstetico, perfilTextual, dnaPorMarca, clientesSemelhantes,
+  perfil360, perfilCliente, dnaCompra, clusters, recomendarColecao, recomendarPlano, simularPedido,
+  perfilEstetico, perfilTextual, dnaPorMarca, tierUltimasColecoes, sazonalidadeHist, ultimaColecaoResumo, gradePadrao,
+  clientesSemelhantes,
 } from '../lib/intelMotor.js';
 import { colecoesPlano, imagemPlano, planoDisponivel } from '../lib/plano2027.js';
 
@@ -163,13 +165,13 @@ intel.get('/cliente/:codcli', resolverCodcli, podeVer, async (req, res) => {
       dna,
       perfil_texto: perfilTextual(codcli, filtro),
       dna_marca: dnaPorMarca(codcli, filtro),
-      clusters: clusters(codcli, perfil, dna),
+      tier_ultimas_colecoes: tierUltimasColecoes(codcli, 3),
+      sazonalidade: sazonalidadeHist(codcli),
+      ultima_colecao: ultimaColecaoResumo(codcli),
+      grade_padrao: gradePadrao(codcli, filtro),
       estetica: perfilEstetico(codcli, filtro),
-      semelhantes: clientesSemelhantes(codcli, 8).map((s) => ({
-        codcli: s.codcli,
-        similaridade: Math.round(s.sim * 100),
-        nome: idb.prepare('SELECT nome FROM clientes_ex WHERE codcli=?').get(s.codcli)?.nome || s.codcli,
-      })),
+      // clientes semelhantes NÃO vão para a tela de diagnóstico (uso interno na
+      // sugestão). Mantido fora conforme pedido.
       sync: syncInfo,
     });
   } catch (e) {
@@ -185,9 +187,10 @@ intel.get('/cliente/:codcli/recomendacoes', resolverCodcli, podeVer, (req, res) 
   const temporada = ['Verão', 'Inverno'].includes(req.query.temporada) ? req.query.temporada : null;
   const filtro = temporada ? { temporada } : {};
   try {
-    // Coleção nova curada (plano 2027) vs coleção do EXCIA.
+    // Coleção nova curada (plano 2027) → simulador de 3 cenários;
+    // coleção do EXCIA → recomendação clássica.
     const r = colecao.startsWith('PLANO:')
-      ? recomendarPlano(codcli, colecao.slice(6), { filtro })
+      ? simularPedido(codcli, colecao.slice(6), { filtro })
       : recomendarColecao(codcli, colecao, { filtro });
     if (r.erro) return res.status(422).json({ error: r.erro });
     res.json(r);

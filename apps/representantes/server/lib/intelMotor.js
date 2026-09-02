@@ -411,6 +411,96 @@ export function dnaPorMarca(codcli, filtro = {}) {
   })).sort((a, b) => b.pecas - a.pecas);
 }
 
+// Ano de uma coleção (do catálogo: "VERÃO 2027 - PRIMAVERA" → 2027).
+function anoColecao(codigo) {
+  const d = catDesc('colecao', codigo);
+  const m = /(20\d{2})/.exec(d);
+  return m ? m[1] : null;
+}
+
+// Entrada/Médio/Premium nas N últimas coleções compradas (para o gráfico).
+export function tierUltimasColecoes(codcli, n = 3) {
+  const cols = idb.prepare(`
+    SELECT p.colecao, MAX(p.dt_emissao) ult
+    FROM pedidos p WHERE p.codcli=? AND p.valor_liq>0 AND p.colecao NOT IN ('','00','9','09')
+    GROUP BY p.colecao ORDER BY ult DESC LIMIT ?`).all(String(codcli), n);
+  const out = [];
+  for (const c of cols) {
+    const itens = idb.prepare(`
+      SELECT i.codigo, i.preco, (i.qtde+i.faturado) q, pr.marca
+      FROM pedido_itens i JOIN pedidos p ON p.numero=i.numero
+      LEFT JOIN produtos pr ON pr.codigo=i.codigo
+      WHERE p.codcli=? AND p.colecao=?`).all(String(codcli), c.colecao);
+    const t = { Entrada: 0, 'Médio': 0, Premium: 0 }; let tot = 0;
+    for (const it of itens) {
+      const q = Number(it.q || 0); if (q <= 0) continue;
+      const tier = tierDeItem(it.codigo, catDesc('marca', it.marca), Number(it.preco || 0));
+      if (tier) { t[tier] += q; tot += q; }
+    }
+    if (!tot) continue;
+    out.push({
+      colecao: c.colecao, label: catDesc('colecao', c.colecao), ano: anoColecao(c.colecao),
+      temporada: temporadaColecao(c.colecao), total: Math.round(tot),
+      tiers: TIERS.map((k) => ({ chave: k, qtd: Math.round(t[k]), pct: round1((t[k] / tot) * 100) })),
+    });
+  }
+  return out.reverse(); // mais antiga → mais recente (esquerda p/ direita no gráfico)
+}
+
+// Sazonalidade Inverno × Verão histórica (peças por temporada, por ano).
+export function sazonalidadeHist(codcli) {
+  const rows = idb.prepare(`
+    SELECT p.colecao, (i.qtde+i.faturado) q
+    FROM pedido_itens i JOIN pedidos p ON p.numero=i.numero
+    WHERE p.codcli=? AND p.colecao NOT IN ('','00','9','09')`).all(String(codcli));
+  const porAno = {}; const tot = { Inverno: 0, 'Verão': 0 };
+  for (const r of rows) {
+    const q = Number(r.q || 0); if (q <= 0) continue;
+    const temp = temporadaColecao(r.colecao); const ano = anoColecao(r.colecao);
+    if (!temp || !ano) continue;
+    (porAno[ano] ??= { Inverno: 0, 'Verão': 0 })[temp] += q;
+    tot[temp] += q;
+  }
+  const total = tot.Inverno + tot['Verão'] || 1;
+  return {
+    inverno: { qtd: Math.round(tot.Inverno), pct: round1((tot.Inverno / total) * 100) },
+    verao: { qtd: Math.round(tot['Verão']), pct: round1((tot['Verão'] / total) * 100) },
+    por_ano: Object.entries(porAno).sort().map(([ano, v]) => ({
+      ano, inverno: Math.round(v.Inverno), verao: Math.round(v['Verão']),
+    })),
+  };
+}
+
+// Resumo da última coleção comprada: valor + peças + nome.
+export function ultimaColecaoResumo(codcli) {
+  const c = idb.prepare(`
+    SELECT p.colecao, MAX(p.dt_emissao) ult, SUM(p.valor_liq) valor
+    FROM pedidos p WHERE p.codcli=? AND p.valor_liq>0 AND p.colecao NOT IN ('','00','9','09')
+    GROUP BY p.colecao ORDER BY ult DESC LIMIT 1`).get(String(codcli));
+  if (!c) return null;
+  const pc = idb.prepare(`
+    SELECT SUM(i.qtde+i.faturado) q FROM pedido_itens i JOIN pedidos p ON p.numero=i.numero
+    WHERE p.codcli=? AND p.colecao=?`).get(String(codcli), c.colecao);
+  return {
+    colecao: c.colecao, nome: catDesc('colecao', c.colecao), ano: anoColecao(c.colecao),
+    valor: Math.round(c.valor), pecas: Math.round(pc?.q || 0),
+  };
+}
+
+// Formato padrão de grade: grade (linha) dominante + distribuição de tamanhos.
+export function gradePadrao(codcli, filtro = {}) {
+  const dna = dnaCompra(codcli, filtro);
+  if (!dna) return null;
+  const linhaTop = dna.participacao.linha[0]?.chave || null;
+  const tams = dna.distribuicao.tamanho.slice(0, 6);
+  return {
+    linha_dominante: linhaTop,
+    pecas_por_produto: dna.qtd_tipica_por_produto,
+    tamanhos: tams,
+    resumo: linhaTop ? `${linhaTop} · ${tams.slice(0, 4).map((t) => t.chave).join('/')}` : '—',
+  };
+}
+
 // Texto de perfil de compra (determinístico — números vêm dos dados; a IA não
 // é fonte de cálculo). Retorna { resumo, por_marca:[{marca, texto}] }.
 export function perfilTextual(codcli, filtro = {}) {
@@ -431,7 +521,7 @@ export function perfilTextual(codcli, filtro = {}) {
   const por_marca = marcas.map((m) => {
     const tierTxt = m.tiers.filter((t) => t.pct > 0).map((t) => `${t.chave} ${t.pct}%`).join(', ');
     const cat = m.categorias.map((c) => `${c.chave} (${c.pct}%)`).join(', ');
-    const linhas = m.linhas.map((l) => l.chave).join('/');
+    const linhas = m.linhas.map((l) => `${l.chave} (${l.pct}%)`).join(', ');
     const tams = m.tamanhos.map((t) => t.chave).join(', ');
     const cresc = m.crescimento_pct == null ? 'sem base de comparação'
       : `${m.crescimento_pct >= 0 ? 'crescimento' : 'queda'} de ${Math.abs(m.crescimento_pct)}% vs o ano anterior`;
@@ -439,7 +529,8 @@ export function perfilTextual(codcli, filtro = {}) {
       : m.pct_estampado >= 30 ? 'mix de estampados e lisos' : 'predominância de peças lisas/básicas';
     const texto = `Em <b>${m.marca}</b> concentra <b>${m.pct_carteira}%</b> das peças `
       + `(${m.pecas.toLocaleString('pt-BR')} pç, ticket R$ ${m.ticket_peca}/peça). `
-      + `Compra sobretudo <b>${cat || '—'}</b>${linhas ? `, nas linhas ${linhas}` : ''}. `
+      + `Compra sobretudo <b>${cat || '—'}</b>. `
+      + `Por linha/idade: ${linhas || '—'}. `
       + `Faixa de preço: ${tierTxt || '—'} — concentração em <b>${m.tier_dominante || '—'}</b>. `
       + `Tamanhos mais pedidos: ${tams || '—'}. ${est.charAt(0).toUpperCase() + est.slice(1)}. `
       + `Tendência: ${cresc}.`;
@@ -865,6 +956,222 @@ export function recomendarPlano(codcli, col, { topPorPapel = 40, filtro = {} } =
     recomendacoes: grupos, financeiro,
     dna_resumo: { pecas: dna.pecas_total, cobertura: dna.cobertura },
   };
+}
+
+// ===========================================================================
+// SIMULADOR DE PEDIDO em 3 cenários (Essencial / Evolução / Curadoria)
+// Cada cenário é um pedido COMPLETO com estratégia própria, composto pela
+// regra de crescimento (aderente / expansão / moda). Score por referência
+// (histórico, categoria, preço, estética, grade, potencial, curadoria).
+// Faixa do produto = a oficial do plano (histórico da última coleção).
+// ===========================================================================
+const _chaveN = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+const _normFaixa = (f) => { const s = _chaveN(f); return s.startsWith('ENTR') ? 'Entrada' : s.startsWith('PREM') ? 'Premium' : 'Médio'; };
+const _temDecor = (itens) => (itens || []).some((x) => /estampa|bordado|paet|perola|p.rola|strass|renda|laise|tule|pedraria|xadrez|listrad/i.test(x));
+
+export function simularPedido(codcli, col, { filtro = {} } = {}) {
+  if (!planoDisponivel()) return { erro: 'plano da coleção 2027 não instalado' };
+  const dna = dnaCompra(codcli, filtro);
+  if (!dna) return { erro: 'sem histórico de itens para este cliente' };
+  const produtos = produtosPlano(col);
+  if (!produtos.length) return { erro: `sem produtos no plano ${col}` };
+  const perfilC = perfilCliente(codcli);
+  const anterior = ultimaColecaoResumo(codcli);
+
+  const sharesN = (lista) => { const mx = Math.max(0, ...lista.map((s) => s.pct || 0)); const m = {}; for (const s of lista) m[_chaveN(s.chave)] = mx ? Math.min((s.pct || 0) / mx, 1) : 0; return m; };
+  const afMarca = sharesN(dna.participacao.marca);
+  const afGrupo = sharesN(dna.participacao.grupo);
+  const afLinha = sharesN(dna.participacao.linha);
+  const afTier = normalizaShares(dna.distribuicao.tier);
+  const tierShare = Object.fromEntries(dna.distribuicao.tier.map((t) => [t.chave, t.pct]));
+  const tamShare = new Map(dna.distribuicao.tamanho.map((t) => [t.chave, t.pct / 100]));
+  const estampado = dna.pct_estampado >= 30;
+  const volMax = Math.max(1, ...produtos.map((p) => p.vol || 0));
+  // Perfil comercial pela faixa dominante (popular / médio / premium).
+  const perfilComercial = dna.tier_dominante === 'Entrada' ? 'Popular' : dna.tier_dominante === 'Premium' ? 'Premium' : 'Médio';
+  const mature = ['Vip', 'Vip 3+', 'Frequente'].includes(perfilC.tier);
+
+  const PESOS = { historico: 0.25, categoria: 0.15, preco: 0.15, estetica: 0.15, grade: 0.10, potencial: 0.10, curadoria: 0.10 };
+  const scored = produtos.map((pr) => {
+    const faixa = _normFaixa(pr.faixa);
+    const sizes = String(pr.tam || '').split('/').map((s) => s.trim()).filter(Boolean);
+    const cMarca = afMarca[_chaveN(pr.m)] || 0;
+    const cGrupo = afGrupo[_chaveN(pr.grupo)] || 0;
+    const cLinha = afLinha[_chaveN(pr.tp)] ?? 0; // linha aproximada por tipo quando houver
+    const comp = {
+      historico: Math.min(0.45 * cMarca + 0.4 * cGrupo + 0.15 * cLinha, 1),
+      categoria: cGrupo,
+      preco: afTier[faixa] || 0,
+      estetica: (estampado && _temDecor(pr.itens)) ? 1 : (!estampado && !_temDecor(pr.itens)) ? 0.6 : 0.25,
+      grade: sizes.length ? Math.min(sizes.reduce((s, t) => s + (tamShare.get(t) || 0), 0) * 1.5, 1) : 0,
+      potencial: cMarca >= 0.4 ? (1 - cGrupo) : 0.2, // categoria pouco explorada na marca forte
+      curadoria: (pr.vol || 0) / volMax,             // importância na coleção (volume planejado)
+    };
+    let sc = 0; for (const [k, w] of Object.entries(PESOS)) sc += Math.min(comp[k], 1) * w;
+    const compat = Math.max(0, Math.min(Math.round(sc * 100), 100));
+    // camada: comprovado (aderente) / expansão de categoria / aposta de moda
+    const camada = comp.historico >= 0.5 ? 'aderente'
+      : (comp.curadoria >= 0.55 && comp.historico < 0.35) ? 'moda' : 'expansao';
+    return { pr, faixa, sizes, comp, compat, camada, marca: pr.m, grupo: pr.grupo, tipo: pr.tp };
+  });
+
+  // grade + quantidade sugerida por referência (do padrão do cliente).
+  const gradeRef = (sizes, preco) => {
+    const porSku = Math.min(Math.max(dna.qtd_tipica_por_produto || sizes.length, sizes.length || 1), (sizes.length || 1) * 3);
+    const pesos = sizes.map((t) => { const h = dna.distribuicao.tamanho.find((x) => x.chave === t); return { tam: t, peso: h ? h.pct : 0 }; });
+    if (pesos.every((p) => p.peso === 0)) pesos.forEach((p) => { p.peso = 1; });
+    const somaF = pesos.reduce((s, p) => s + p.peso, 0) || 1;
+    let grade = pesos.map((p) => ({ tam: p.tam, qtd: Math.round((p.peso / somaF) * porSku) }));
+    let soma = grade.reduce((s, g) => s + g.qtd, 0); let i = 0;
+    while (soma !== porSku && grade.length) { const g = grade[i % grade.length]; if (soma < porSku) { g.qtd++; soma++; } else if (g.qtd > 0) { g.qtd--; soma--; } else { i++; continue; } i++; }
+    grade = grade.filter((g) => g.qtd > 0);
+    const qtd = grade.reduce((s, g) => s + g.qtd, 0);
+    return { grade, qtd, valor: Math.round(qtd * preco * 100) / 100 };
+  };
+
+  // Amplitude típica do cliente: nº de referências distintas na última coleção
+  // (limitado ao tamanho do plano). Define quantas refs cada cenário seleciona.
+  const breadth = Math.min(
+    Math.max(idb.prepare(`SELECT COUNT(DISTINCT i.codigo) n FROM pedido_itens i JOIN pedidos p ON p.numero=i.numero
+      WHERE p.codcli=? AND p.colecao=(SELECT colecao FROM pedidos WHERE codcli=? AND valor_liq>0 ORDER BY dt_emissao DESC LIMIT 1)`)
+      .get(String(codcli), String(codcli))?.n || 0, 30),
+    produtos.length,
+  );
+
+  // Compõe um cenário: seleção por PRIORIDADE (compat + viés de faixa + bônus de
+  // camada) até o nº de referências, respeitando cotas por camada (70/20/10 etc).
+  function compor(cfg) {
+    const nRefs = Math.min(Math.round(breadth * cfg.fatorRefs), produtos.length);
+    const cotaCam = {
+      aderente: Math.round(nRefs * (cfg.mix.aderente || 0)),
+      expansao: Math.round(nRefs * (cfg.mix.expansao || 0)),
+      moda: Math.round(nRefs * (cfg.mix.moda || 0)),
+    };
+    const usados = new Set();
+    const itens = [];
+    const pega = (cam, cota) => {
+      const cand = scored.filter((a) => a.camada === cam && !usados.has(a.pr.cod) && Number(a.pr.atac || a.pr.pm || 0) > 0)
+        .map((a) => ({ a, prio: a.compat + (cfg.tierLean[a.faixa] || 0) + (a.camada === 'aderente' ? 8 : 0) }))
+        .sort((x, y) => y.prio - x.prio);
+      let n = 0;
+      for (const { a } of cand) {
+        if (n >= cota) break;
+        const preco = Number(a.pr.atac || a.pr.pm || 0);
+        const g = gradeRef(a.sizes, preco);
+        if (!g.qtd) continue;
+        usados.add(a.pr.cod); itens.push({ a, ...g, preco }); n++;
+      }
+      return n;
+    };
+    // camadas na ordem de prioridade da estratégia
+    for (const cam of ['aderente', 'expansao', 'moda']) pega(cam, cotaCam[cam]);
+    // completa com os melhores restantes (respeitando o viés de faixa) se faltou
+    if (itens.length < nRefs) {
+      const resto = scored.filter((a) => !usados.has(a.pr.cod) && Number(a.pr.atac || a.pr.pm || 0) > 0)
+        .map((a) => ({ a, prio: a.compat + (cfg.tierLean[a.faixa] || 0) }))
+        .sort((x, y) => y.prio - x.prio);
+      for (const { a } of resto) {
+        if (itens.length >= nRefs) break;
+        const preco = Number(a.pr.atac || a.pr.pm || 0);
+        const g = gradeRef(a.sizes, preco);
+        if (!g.qtd) continue;
+        usados.add(a.pr.cod); itens.push({ a, ...g, preco });
+      }
+    }
+    return montarCenario(cfg, itens, dna);
+  }
+
+  // fatorRefs = amplitude relativa; tierLean empurra a faixa da estratégia.
+  const cenarios = {
+    ESSENCIAL: compor({ chave: 'ESSENCIAL', nome: 'Pedido Essencial', tier: 'Entrada', estrategia: 'Segurança + giro', fatorRefs: 0.7,
+      mix: { aderente: 0.85, expansao: 0.15, moda: 0 }, tierLean: { Entrada: 18, 'Médio': 6, Premium: 0 } }),
+    EVOLUCAO: compor({ chave: 'EVOLUCAO', nome: 'Pedido Evolução', tier: 'Médio', estrategia: 'Equilíbrio + novidade', recomendado: true, fatorRefs: 1.0,
+      mix: mature ? { aderente: 0.6, expansao: 0.25, moda: 0.15 } : { aderente: 0.7, expansao: 0.2, moda: 0.1 }, tierLean: { Entrada: 4, 'Médio': 14, Premium: 6 } }),
+    CURADORIA: compor({ chave: 'CURADORIA', nome: 'Pedido Curadoria', tier: 'Premium', estrategia: 'Curadoria + diferenciação', fatorRefs: 0.85,
+      mix: { aderente: 0.45, expansao: 0.25, moda: 0.3 }, tierLean: { Entrada: 0, 'Médio': 6, Premium: 18 } }),
+  };
+  // Crescimento sugerido (cenário recomendado vs última coleção comprada).
+  const crescimento = anterior?.valor > 0
+    ? round1(((cenarios.EVOLUCAO.valor - anterior.valor) / anterior.valor) * 100) : null;
+
+  return {
+    fonte: 'simulador',
+    cliente: {
+      perfil: perfilC, perfil_comercial: perfilComercial,
+      afinidade_moda: Math.round(dna.pct_estampado), // proxy: % de estampa/decoração
+      sensibilidade_preco: perfilComercial === 'Popular' ? 'Alta' : perfilComercial === 'Premium' ? 'Baixa' : 'Média',
+      tier_hist: dna.distribuicao.tier,
+    },
+    pedido_anterior: anterior,
+    crescimento_recomendado_pct: crescimento,
+    regra_crescimento: mature ? '60 / 25 / 15' : '70 / 20 / 10',
+    cenarios,
+    resumo: { colecao: `SIM:${col}`, desc_colecao: col === 'INVERNO' ? 'Inverno 2027' : 'Tropical 2027', produtos_no_plano: produtos.length },
+  };
+}
+
+function montarCenario(cfg, itens, dna) {
+  const brl = (v) => Math.round(v);
+  const valor = itens.reduce((s, x) => s + x.valor, 0);
+  const pecas = itens.reduce((s, x) => s + x.qtd, 0);
+  const refs = itens.length;
+  const pm = pecas ? valor / pecas : 0;
+  const porFaixa = { Entrada: 0, 'Médio': 0, Premium: 0 };
+  const porCamada = { aderente: 0, expansao: 0, moda: 0 };
+  const cat = {}; const marca = {}; const grade = {};
+  for (const x of itens) {
+    porFaixa[x.a.faixa] += x.qtd;
+    porCamada[x.a.camada] += x.qtd;
+    cat[x.a.grupo] = (cat[x.a.grupo] || 0) + x.qtd;
+    marca[x.a.marca] = (marca[x.a.marca] || 0) + x.qtd;
+    grade[x.a.pr.tam] = (grade[x.a.pr.tam] || 0) + x.qtd;
+  }
+  const pct = (v) => (pecas ? Math.round((v / pecas) * 100) : 0);
+  const share = (obj) => Object.entries(obj).map(([k, v]) => ({ chave: k, qtd: Math.round(v), pct: pct(v) })).sort((a, b) => b.qtd - a.qtd);
+
+  // Índice de Qualidade do Pedido (0-100): equilíbrio de categoria, grade,
+  // aderência de preço ao cliente, presença sadia de novidade, e histórico.
+  const catShare = share(cat);
+  const equilibrioCat = catShare.length >= 3 ? 100 - Math.max(0, (catShare[0]?.pct || 0) - 45) * 2 : 60;
+  const tierCliente = Object.fromEntries(dna.distribuicao.tier.map((t) => [t.chave, t.pct]));
+  const aderPreco = 100 - (['Entrada', 'Médio', 'Premium'].reduce((s, f) => s + Math.abs(pct(porFaixa[f]) - (tierCliente[f] || 0)), 0) / 2);
+  const novidade = pct(porCamada.moda);
+  const equilNov = novidade <= 5 ? 60 : novidade <= 20 ? 100 : Math.max(40, 100 - (novidade - 20) * 2);
+  const histPct = pct(porCamada.aderente);
+  const equilHist = histPct >= 50 ? 100 : Math.max(40, histPct * 1.6);
+  const iqp = Math.max(0, Math.min(100, Math.round(0.25 * equilibrioCat + 0.25 * aderPreco + 0.20 * equilNov + 0.30 * equilHist)));
+
+  return {
+    chave: cfg.chave, nome: cfg.nome, tier: cfg.tier, estrategia: cfg.estrategia, recomendado: !!cfg.recomendado,
+    valor: brl(valor), refs, pecas, preco_medio: Math.round(pm * 100) / 100,
+    mix_faixa: ['Entrada', 'Médio', 'Premium'].map((f) => ({ chave: f, qtd: Math.round(porFaixa[f]), pct: pct(porFaixa[f]) })),
+    composicao: { historico: pct(porCamada.aderente), expansao: pct(porCamada.expansao), moda: pct(porCamada.moda) },
+    categorias: catShare.slice(0, 6), marcas: share(marca), grades: share(grade),
+    indice_qualidade: iqp,
+    itens: itens.map((x) => ({
+      codigo: x.a.pr.cod, descricao: x.a.pr.desc || x.a.pr.tp, marca: x.a.marca, tipo: x.a.tipo,
+      familia: x.a.pr.fam, tecido: x.a.pr.tec || null, itens_estetica: x.a.pr.itens || [],
+      tier: x.a.faixa, camada: x.a.camada, compatibilidade: x.a.compat,
+      preco_tabela: x.preco, grade_nome: x.a.pr.tam, vol_planejado: x.a.pr.vol || null,
+      indicadores: indicadoresRef(x.a),
+      papel: x.a.camada === 'aderente' ? 'Comprovado' : x.a.camada === 'moda' ? 'Aposta de moda / imagem' : 'Expansão de categoria',
+      grade: { qtd_total: x.qtd, por_tamanho: x.grade, valor_estimado: x.valor },
+      tem_imagem_plano: true,
+    })),
+  };
+}
+
+// Indicadores visuais por referência (cockpit).
+function indicadoresRef(a) {
+  const ind = [];
+  if (a.compat >= 75) ind.push({ s: '★', t: 'Muito recomendado' });
+  if (a.comp.potencial >= 0.6 && a.camada !== 'aderente') ind.push({ s: '↑', t: 'Oportunidade de crescimento' });
+  if (a.comp.estetica >= 1) ind.push({ s: '♥', t: 'Alta afinidade estética' });
+  if (a.comp.preco >= 0.6) ind.push({ s: '$', t: 'Preço aderente' });
+  if (a.camada === 'moda') ind.push({ s: 'N', t: 'Novidade' });
+  if (a.comp.grade < 0.3) ind.push({ s: '⚠', t: 'Grade fora do padrão' });
+  if (a.faixa === 'Premium') ind.push({ s: 'P', t: 'Produto premium' });
+  return ind;
 }
 
 function montarRecPlano(a, dna, ctx) {

@@ -124,11 +124,16 @@ svg text{font-family:inherit}
     <div class="grid g2">
       <div class="card"><h2>🏅 Perfil do cliente <small>pela linha histórica de coleções</small></h2>
         <div id="perfilCli"></div>
-        <div style="margin-top:14px"><div style="font-size:.72rem;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Outras leituras</div>
-          <div class="chips" id="clusters"></div></div></div>
+        <div id="ultimaCol" style="margin-top:12px"></div>
+        <div id="gradePadrao" style="margin-top:8px"></div></div>
       <div class="card"><h2>💰 Entrada · Médio · Premium <small>faixa por segmento (ano·coleção·marca·tipo·grade)</small></h2>
         <div id="dnaTier"></div>
         <div style="font-size:.7rem;color:var(--mut);margin-top:8px">A faixa é relativa ao segmento do produto — não um corte fixo de R$.</div></div>
+    </div>
+
+    <div class="grid g2">
+      <div class="card"><h2>📊 Entrada/Médio/Premium nas 3 últimas coleções</h2><div id="tierColecoes"></div></div>
+      <div class="card"><h2>🗓 Sazonalidade · Inverno × Verão <small>histórico</small></h2><div id="sazon"></div></div>
     </div>
 
     <div class="grid g3">
@@ -288,7 +293,39 @@ function render(d){
       <div style="font-size:.66rem;opacity:.9;margin-top:3px">${esc(pc.faixa)}</div></div>
     <div style="font-size:.85rem;color:#374151;line-height:1.5">Comprou em <b>${pc.colecoes_compradas} coleções distintas</b> ao longo do histórico.<br>
     <span style="color:var(--mut);font-size:.76rem">Quanto mais coleções, mais fiel e previsível é a recompra.</span></div></div>`:'<div style="color:var(--mut)">Sem compras registradas.</div>';
-  $('clusters').innerHTML=(d.clusters||[]).map(c=>`<div class="chip"><b>${esc(c.cluster)}</b><small>${esc(c.dimensao)}</small></div>`).join('')||'<span style="color:var(--mut);font-size:.8rem">—</span>';
+
+  // Última coleção comprada + grade padrão
+  const uc=d.ultima_colecao;
+  $('ultimaCol').innerHTML=uc?`<div class="fact"><span style="color:var(--mut)">Última coleção comprada</span><b>${esc(uc.nome)}</b></div>
+    <div class="fact"><span style="color:var(--mut)">Valor · peças</span><b>${brl(uc.valor)} · ${Math.round(uc.pecas).toLocaleString('pt-BR')} pç</b></div>`:'';
+  const gp=d.grade_padrao;
+  $('gradePadrao').innerHTML=gp?`<div class="fact"><span style="color:var(--mut)">Grade padrão de compra</span><b>${esc(gp.resumo)}</b></div>
+    <div class="fact"><span style="color:var(--mut)">Peças por referência (típico)</span><b>${gp.pecas_por_produto} pç</b></div>`:'';
+
+  // Gráfico Entrada/Médio/Premium nas 3 últimas coleções
+  const tc=d.tier_ultimas_colecoes||[];
+  const TCOR={'Entrada':'#0891b2','Médio':'#2563EB','Premium':'#7c3aed'};
+  $('tierColecoes').innerHTML=tc.length?`<div style="display:flex;gap:16px;align-items:flex-end;height:180px;padding:8px 0">`+
+    tc.map(c=>`<div style="flex:1;text-align:center;display:flex;flex-direction:column;justify-content:flex-end;height:100%">
+      <div style="display:flex;flex-direction:column-reverse;height:140px;border-radius:8px;overflow:hidden;border:1px solid var(--line)">
+        ${c.tiers.map(t=>`<div title="${t.chave} ${t.pct}%" style="height:${t.pct}%;background:${TCOR[t.chave]};min-height:${t.pct>0?'2px':'0'};display:flex;align-items:center;justify-content:center;color:#fff;font-size:.6rem;font-weight:600">${t.pct>=12?t.pct+'%':''}</div>`).join('')}
+      </div>
+      <div style="font-size:.66rem;font-weight:600;margin-top:6px">${esc(c.ano||'')}</div>
+      <div style="font-size:.58rem;color:var(--mut);line-height:1.2">${esc((c.label||'').replace(/^VER..?O /,'V').replace(/^INVERNO /,'INV'))}</div>
+    </div>`).join('')+`</div>
+    <div style="display:flex;gap:12px;justify-content:center;font-size:.66rem;margin-top:4px">${Object.entries(TCOR).map(([k,v])=>`<span><span style="display:inline-block;width:9px;height:9px;background:${v};border-radius:2px"></span> ${k}</span>`).join('')}</div>`
+    :'<div style="color:var(--mut);font-size:.8rem">Sem histórico suficiente.</div>';
+
+  // Sazonalidade Inverno × Verão
+  const sz=d.sazonalidade;
+  if(sz){
+    const tot=sz.inverno.pct+sz.verao.pct||1;
+    $('sazon').innerHTML=`<div style="display:flex;height:34px;border-radius:8px;overflow:hidden;margin-bottom:12px">
+      <div style="width:${sz.inverno.pct}%;background:#1a4fa0;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:600">${sz.inverno.pct>=8?'Inverno '+sz.inverno.pct+'%':''}</div>
+      <div style="width:${sz.verao.pct}%;background:#e6a817;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:600">${sz.verao.pct>=8?'Verão '+sz.verao.pct+'%':''}</div></div>`+
+      (sz.por_ano&&sz.por_ano.length?`<table style="width:100%;border-collapse:collapse;font-size:.72rem"><tr style="color:var(--mut)"><th style="text-align:left">Ano</th><th style="text-align:right">Inverno</th><th style="text-align:right">Verão</th></tr>`+
+      sz.por_ano.map(a=>`<tr><td>${esc(a.ano)}</td><td style="text-align:right">${a.inverno.toLocaleString('pt-BR')}</td><td style="text-align:right">${a.verao.toLocaleString('pt-BR')}</td></tr>`).join('')+`</table>`:'');
+  } else $('sazon').innerHTML='<div style="color:var(--mut);font-size:.8rem">Sem dados.</div>';
 
   // Tiers Entrada/Médio/Premium (destaque)
   const tiers=dna?.distribuicao.tier||[];
@@ -329,7 +366,7 @@ async function recomendar(){
     const t=temporada();
     REC=await api(`/api/intel/cliente/${encodeURIComponent(CLI.perfil.codcli)}/recomendacoes?colecao=${encodeURIComponent(col)}${t?'&temporada='+encodeURIComponent(t):''}`);
     DECISOES={};
-    renderRecs();
+    if(REC.fonte==='simulador') renderSimulador(); else renderRecs();
   }catch(e){$('recs').innerHTML=`<div class="aviso">${esc(e.message)}</div>`}
   b.disabled=false;b.textContent='Gerar sugestões';
 }
@@ -338,8 +375,106 @@ const TIPOS={ALTO_GIRO:{t:'🔁 Alto giro',d:'O forte do cliente — marca, cate
 TARGET:{t:'🎯 Target',d:'O que o perfil e clientes semelhantes compram e ele ainda não — alvo de conquista.',c:'#2563EB'},
 DESAFIO:{t:'🚀 Desafio',d:'Faixa/categoria pouco explorada pelo cliente — para ampliar a participação.',c:'#d97706'}};
 const TIER_COR={'Entrada':'#0891b2','Médio':'#2563EB','Premium':'#7c3aed'};
+const CEN_COR={ESSENCIAL:'#0891b2',EVOLUCAO:'#2563EB',CURADORIA:'#7c3aed'};
 
 function scoreCor(s){return s>=65?'#059669':s>=50?'#d97706':'#94a3b8'}
+
+// ===== Simulador de 3 cenários (cockpit) =====
+let CEN='EVOLUCAO';
+function renderSimulador(){
+  const r=REC, cl=r.cliente;
+  const cocklit=`<div class="card" style="margin-top:6px"><div style="display:flex;gap:22px;flex-wrap:wrap;align-items:center">
+    <div><div style="font-size:.66rem;color:var(--mut);text-transform:uppercase;letter-spacing:.5px">Perfil comercial</div><div style="font-size:1.15rem;font-weight:800;color:${cl.perfil_comercial==='Popular'?'#0891b2':cl.perfil_comercial==='Premium'?'#7c3aed':'#2563EB'}">${esc(cl.perfil_comercial)}</div></div>
+    <div><div style="font-size:.66rem;color:var(--mut);text-transform:uppercase;letter-spacing:.5px">Afinidade moda</div><div style="font-size:1.15rem;font-weight:800">${cl.afinidade_moda}/100</div></div>
+    <div><div style="font-size:.66rem;color:var(--mut);text-transform:uppercase;letter-spacing:.5px">Sensib. a preço</div><div style="font-size:1.15rem;font-weight:800">${esc(cl.sensibilidade_preco)}</div></div>
+    <div><div style="font-size:.66rem;color:var(--mut);text-transform:uppercase;letter-spacing:.5px">Regra de composição</div><div style="font-size:1.15rem;font-weight:800">${esc(r.regra_crescimento)}</div><div style="font-size:.58rem;color:var(--mut)">histórico / expansão / moda</div></div>
+    ${r.pedido_anterior?`<div style="margin-left:auto;text-align:right"><div style="font-size:.66rem;color:var(--mut)">Última coleção comprada</div><div style="font-weight:700">${brl(r.pedido_anterior.valor)} · ${Math.round(r.pedido_anterior.pecas).toLocaleString('pt-BR')} pç</div></div>`:''}
+  </div></div>`;
+
+  // três cartões-cenário (clicáveis)
+  const cards=['ESSENCIAL','EVOLUCAO','CURADORIA'].map(k=>{
+    const c=r.cenarios[k], sel=k===CEN;
+    return `<div onclick="selCenario('${k}')" style="cursor:pointer;flex:1;min-width:230px;background:#fff;border:2px solid ${sel?CEN_COR[k]:'var(--line)'};border-radius:16px;padding:14px 16px;box-shadow:${sel?'0 4px 14px rgba(0,0,0,.08)':'none'}">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-weight:800;color:${CEN_COR[k]}">${esc(c.nome)}</div>
+        ${c.recomendado?'<span style="font-size:.6rem;background:#059669;color:#fff;padding:2px 7px;border-radius:8px;font-weight:700">RECOMENDADO</span>':''}
+      </div>
+      <div style="font-size:.68rem;color:var(--mut);margin-bottom:8px">${esc(c.tier)} · ${esc(c.estrategia)}</div>
+      <div style="font-size:1.35rem;font-weight:800">${brl(c.valor)}</div>
+      <div style="font-size:.72rem;color:var(--mut)">${c.refs} refs · ${c.pecas.toLocaleString('pt-BR')} pç · PM R$ ${c.preco_medio}</div>
+      <div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin:8px 0 4px">${c.mix_faixa.map(m=>`<div title="${m.chave} ${m.pct}%" style="width:${m.pct}%;background:${TIER_COR[m.chave]}"></div>`).join('')}</div>
+      <div style="font-size:.6rem;color:var(--mut)">${c.mix_faixa.map(m=>m.chave[0]+' '+m.pct+'%').join(' · ')}</div>
+      <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:.68rem"><span style="color:var(--mut)">Índice de Qualidade</span><b style="color:${c.indice_qualidade>=80?'#059669':c.indice_qualidade>=60?'#d97706':'#dc2626'}">${c.indice_qualidade}/100</b></div>
+      <div style="font-size:.6rem;color:var(--mut);margin-top:2px">hist ${c.composicao.historico}% · exp ${c.composicao.expansao}% · moda ${c.composicao.moda}%</div>
+    </div>`;
+  }).join('');
+
+  $('recInfo').innerHTML=`Simulador · <b>${r.resumo.produtos_no_plano}</b> refs curadas · escolha o cenário e ajuste as grades`;
+  $('recs').innerHTML=cocklit+`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">${cards}</div><div id="cenDetalhe"></div>`;
+  renderCenarioDetalhe();
+  $('foot').style.display='flex';
+  atualizaFootSim();
+}
+function selCenario(k){CEN=k;renderSimulador();}
+
+function renderCenarioDetalhe(){
+  const c=REC.cenarios[CEN];
+  let h=`<div class="secRec"><h2 style="color:${CEN_COR[CEN]}">${esc(c.nome)} · ${c.refs} referências</h2>
+    <p>${esc(c.estrategia)} — mix por faixa: ${c.mix_faixa.map(m=>m.chave+' '+m.pct+'%').join(' · ')}. Categorias: ${c.categorias.slice(0,4).map(x=>x.chave+' '+x.pct+'%').join(', ')}.</p>
+    <div class="prods">`;
+  for(const p of c.itens){
+    const key=p.codigo;
+    const ind=(p.indicadores||[]).map(i=>`<span title="${esc(i.t)}" style="font-size:.72rem;margin-right:2px">${i.s}</span>`).join('');
+    h+=`<div class="prod">
+      <div class="hd">
+        <img src="/api/intel/imagem/${encodeURIComponent(p.codigo)}" loading="lazy" onerror="this.outerHTML='<div class=noimg>sem foto</div>'">
+        <div class="inf">
+          <div class="cod">${esc(p.codigo)}${p.familia?` · <b style="color:#7c3aed">${esc(p.familia)}</b>`:''}</div>
+          <div class="nm">${esc(p.descricao)}</div>
+          <div class="mt">${esc(p.marca)} · ${esc(p.tipo)}${p.tecido?' · '+esc(p.tecido):''}</div>
+          <div class="pr">R$ ${p.preco_tabela.toFixed(2)} <span style="font-size:.62rem;color:#fff;background:${TIER_COR[p.tier]||'#64748b'};padding:1px 7px;border-radius:8px;font-weight:600">${esc(p.tier)}</span> <span style="font-size:.66rem">${ind}</span></div>
+          <div style="font-size:.64rem;color:var(--mut);margin-top:2px">${esc(p.papel)}</div>
+        </div>
+        <div class="score" style="background:${scoreCor(p.compatibilidade)}">${p.compatibilidade}<small>compat</small></div>
+      </div>
+      <div class="grade">
+        <table><tr>${p.grade.por_tamanho.map(g=>`<th>${esc(g.tam)}</th>`).join('')}</tr>
+        <tr>${p.grade.por_tamanho.map(g=>`<td><input type="number" min="0" value="${g.qtd}" data-sk="${esc(key)}" data-tam="${esc(g.tam)}" onchange="mudouGradeSim('${esc(key)}',${p.preco_tabela})"></td>`).join('')}</tr></table>
+        <div class="tot"><span id="tots-${key}">${p.grade.qtd_total} pç</span><span id="vals-${key}">${brl(p.grade.valor_estimado)}</span></div>
+      </div>
+      <div class="acts" id="actss-${key}">
+        <button class="btn ok mini" onclick="decidirSim('${esc(key)}','aceito',${p.preco_tabela})">Aceitar</button>
+        <button class="btn mini" onclick="decidirSim('${esc(key)}','alterado',${p.preco_tabela})">Salvar alteração</button>
+        <button class="btn bad mini" onclick="decidirSim('${esc(key)}','rejeitado',${p.preco_tabela})">Rejeitar</button>
+      </div></div>`;
+  }
+  $('cenDetalhe').innerHTML=h+'</div></div>';
+}
+function gradeSk(sk){return [...document.querySelectorAll(`input[data-sk="${CSS.escape(sk)}"]`)].map(i=>({tam:i.dataset.tam,qtd:Math.max(0,Number(i.value)||0)}));}
+function mudouGradeSim(sk,preco){const g=gradeSk(sk),t=g.reduce((s,x)=>s+x.qtd,0);$('tots-'+sk).textContent=t+' pç';$('vals-'+sk).textContent=brl(t*preco);}
+async function decidirSim(sk,acao,preco){
+  const c=REC.cenarios[CEN];const p=c.itens.find(x=>x.codigo===sk);if(!p)return;
+  const g=gradeSk(sk),t=g.reduce((s,x)=>s+x.qtd,0);
+  const mudou=JSON.stringify(g)!==JSON.stringify(p.grade.por_tamanho.map(x=>({tam:x.tam,qtd:x.qtd})));
+  const af=acao==='aceito'&&mudou?'alterado':acao;
+  try{
+    await api('/api/intel/feedback',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
+      codcli:CLI.perfil.codcli,colecao:REC.resumo.colecao,codigo:sk,
+      sugestao:{cenario:CEN,tier:p.tier,camada:p.camada,compat:p.compatibilidade,qtd_total:p.grade.qtd_total,grade:p.grade.por_tamanho,valor:p.grade.valor_estimado},
+      acao:af,alteracao:af==='rejeitado'?null:{grade:g,qtd_total:t,valor:t*preco}})});
+    DECISOES[CEN+'|'+sk]={acao:af,valor:af==='rejeitado'?0:t*preco};
+    $('actss-'+sk).innerHTML=`<div class="st ${af}">${af==='aceito'?'✓ Aceito':af==='alterado'?'✎ Alterado':'✕ Rejeitado'}</div><button class="btn ghost mini" onclick="reabrirSim('${esc(sk)}',${preco})">Desfazer</button>`;
+    atualizaFootSim();
+  }catch(e){alert('Falha: '+e.message)}
+}
+function reabrirSim(sk,preco){delete DECISOES[CEN+'|'+sk];$('actss-'+sk).innerHTML=`<button class="btn ok mini" onclick="decidirSim('${esc(sk)}','aceito',${preco})">Aceitar</button><button class="btn mini" onclick="decidirSim('${esc(sk)}','alterado',${preco})">Salvar alteração</button><button class="btn bad mini" onclick="decidirSim('${esc(sk)}','rejeitado',${preco})">Rejeitar</button>`;atualizaFootSim();}
+function atualizaFootSim(){
+  const c=REC.cenarios[CEN];
+  $('fSug').textContent=brl(c.valor);
+  const dec=Object.entries(DECISOES).filter(([k])=>k.startsWith(CEN+'|')).map(([,v])=>v);
+  $('fAce').textContent=brl(dec.reduce((s,d)=>s+d.valor,0));
+  $('fDec').textContent=dec.length+' de '+c.refs;
+}
 
 function renderRecs(){
   const r=REC;
