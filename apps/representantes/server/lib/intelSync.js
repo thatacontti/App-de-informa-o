@@ -66,10 +66,10 @@ const CATALOGOS = [
   { tipo: 'marca', path: 'MarcaLista', params: {}, cod: 'codigo' },
   { tipo: 'linha', path: 'LinhaLista', params: {}, cod: 'codigo' },
   { tipo: 'familia', path: 'FamiliaLista', params: {}, cod: 'codigo' },
-  { tipo: 'cor', path: 'CorLista', params: {}, cod: 'codigo' },
+  { tipo: 'cor', path: 'CorLista', params: {}, cod: 'cor' },
   { tipo: 'colecao', path: 'ColecaoLista', params: {}, cod: 'codigo' },
   { tipo: 'condicao', path: 'CondicaoLista', params: {}, cod: 'codigo' },
-  { tipo: 'tamanho', path: 'Tamanho', params: {}, cod: 'codigo' },
+  { tipo: 'tamanho', path: 'Tamanho', params: {}, cod: 'tam' },
 ];
 
 const upCat = idb.prepare(`INSERT INTO catalogos (tipo, codigo, descricao, raw)
