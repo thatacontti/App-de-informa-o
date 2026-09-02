@@ -8,8 +8,9 @@ import { exciaGet, exciaConfigurado } from '../lib/exciaClient.js';
 import { syncGeral, syncItensDoCliente, statusSync } from '../lib/intelSync.js';
 import { firebirdConfigurado, fbPing } from '../lib/firebirdClient.js';
 import {
-  perfil360, perfilCliente, dnaCompra, clusters, recomendarColecao, perfilEstetico, clientesSemelhantes,
+  perfil360, perfilCliente, dnaCompra, clusters, recomendarColecao, recomendarPlano, perfilEstetico, clientesSemelhantes,
 } from '../lib/intelMotor.js';
+import { colecoesPlano, imagemPlano, planoDisponivel } from '../lib/plano2027.js';
 
 export const intel = Router();
 intel.use(requireAuth);
@@ -109,6 +110,8 @@ intel.post('/sync', requireRole('admin'), async (req, res) => {
 
 // ---- coleções disponíveis ------------------------------------------------
 intel.get('/colecoes', (req, res) => {
+  // Coleção nova curada (plano 2027) primeiro; depois as coleções do EXCIA.
+  const plano = planoDisponivel() ? colecoesPlano().map((c) => ({ ...c, plano: true })) : [];
   const rows = idb.prepare(`
     SELECT p.colecao AS codigo, COALESCE(c.descricao, p.colecao) AS descricao,
            COUNT(*) AS produtos
@@ -116,7 +119,7 @@ intel.get('/colecoes', (req, res) => {
     WHERE p.ativo='S' AND p.colecao <> ''
     GROUP BY p.colecao ORDER BY CAST(p.colecao AS INTEGER) DESC LIMIT 12
   `).all();
-  res.json(rows);
+  res.json([...plano, ...rows]);
 });
 
 // ---- busca por nome (autocomplete do campo Código do Cliente) ------------
@@ -178,8 +181,12 @@ intel.get('/cliente/:codcli/recomendacoes', resolverCodcli, podeVer, (req, res) 
   const colecao = String(req.query.colecao || '').trim();
   if (!colecao) return res.status(400).json({ error: 'informe ?colecao=' });
   const temporada = ['Verão', 'Inverno'].includes(req.query.temporada) ? req.query.temporada : null;
+  const filtro = temporada ? { temporada } : {};
   try {
-    const r = recomendarColecao(codcli, colecao, { filtro: temporada ? { temporada } : {} });
+    // Coleção nova curada (plano 2027) vs coleção do EXCIA.
+    const r = colecao.startsWith('PLANO:')
+      ? recomendarPlano(codcli, colecao.slice(6), { filtro })
+      : recomendarColecao(codcli, colecao, { filtro });
     if (r.erro) return res.status(422).json({ error: r.erro });
     res.json(r);
   } catch (e) {
@@ -223,6 +230,12 @@ intel.get('/feedback', (req, res) => {
 // ---- imagem do produto (proxy + cache; token fica no servidor) ----------
 intel.get('/imagem/:codigo', async (req, res) => {
   const codigo = String(req.params.codigo).trim();
+  // Imagem do plano curado (Inverno/Tropical 27) tem prioridade.
+  const imgPlano = imagemPlano(codigo);
+  if (imgPlano) {
+    res.set('Cache-Control', 'public, max-age=86400');
+    return res.type('image/jpeg').send(Buffer.from(imgPlano, 'base64'));
+  }
   const cache = idb.prepare('SELECT * FROM img_cache WHERE codigo=?').get(codigo);
   if (cache) {
     if (!cache.base64) return res.status(404).end(); // "sem imagem" também é cacheado

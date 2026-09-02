@@ -4,6 +4,7 @@
 // Regra de quantidade: demanda de um item = qtde (pendente) + faturado
 // (a EXCIA zera qtde ao faturar; cancelado é acompanhado à parte).
 import { idb } from './intelDb.js';
+import { produtosPlano, planoDisponivel } from './plano2027.js';
 
 const FAIXAS = [
   { id: '00-50', min: 0, max: 50 }, { id: '50-70', min: 50, max: 70 },
@@ -656,6 +657,177 @@ export function recomendarColecao(codcli, colecao, { topPorTipo = 15, filtro = {
   financeiro.total = Object.values(financeiro).reduce((s, v) => s + v, 0);
 
   return { resumo, recomendacoes: grupos, financeiro, dna_resumo: { pecas: dna.pecas_total, cobertura: dna.cobertura } };
+}
+
+// ---------------------------------------------------------------------------
+// Crescimento por tipo de produto (grupo) — cliente, ano vs ano anterior.
+// Peças nos últimos 365 dias vs os 365 anteriores, por grupo/tipo. (A curva
+// ABC/giro é sempre construída dos dados reais de venda, não do plano.)
+// ---------------------------------------------------------------------------
+export function crescimentoPorGrupo(codcli) {
+  const rows = idb.prepare(`
+    SELECT pr.grupo,
+      SUM(CASE WHEN p.dt_emissao >= date('now','-365 days') THEN (i.qtde+i.faturado) ELSE 0 END) q1,
+      SUM(CASE WHEN p.dt_emissao <  date('now','-365 days') AND p.dt_emissao >= date('now','-730 days') THEN (i.qtde+i.faturado) ELSE 0 END) q0
+    FROM pedido_itens i JOIN pedidos p ON p.numero=i.numero
+    LEFT JOIN produtos pr ON pr.codigo=i.codigo
+    WHERE p.codcli=? GROUP BY pr.grupo`).all(String(codcli));
+  const out = {};
+  for (const r of rows) {
+    const nome = catDesc('grupo', r.grupo);
+    out[nome] = {
+      atual: Math.round(r.q1 || 0), anterior: Math.round(r.q0 || 0),
+      pct: r.q0 > 0 ? round1(((r.q1 - r.q0) / r.q0) * 100) : (r.q1 > 0 ? null : 0),
+    };
+  }
+  return out;
+}
+
+// Tamanhos individuais que compõem uma grade do plano (ex.: '6/8/10/12').
+const sizesDaGrade = (g) => String(g || '').split('/').map((s) => s.trim()).filter(Boolean);
+
+// ---------------------------------------------------------------------------
+// Recomendação a partir do PLANO curado (Inverno 27 / Tropical 27).
+// Usa a faixa OFICIAL da empresa, família, estética (aviamentos), volume
+// planejado e imagens do painel — de-para para o histórico real do cliente.
+// ---------------------------------------------------------------------------
+export function recomendarPlano(codcli, col, { topPorPapel = 40, filtro = {} } = {}) {
+  if (!planoDisponivel()) return { erro: 'plano da coleção 2027 não instalado' };
+  const dna = dnaCompra(codcli, filtro);
+  if (!dna) return { erro: 'sem histórico de itens para este cliente neste recorte' };
+  const produtos = produtosPlano(col);
+  if (!produtos.length) return { erro: `sem produtos no plano ${col}` };
+
+  // Chaves normalizadas (sem acento/caixa) para o de-para casar mesmo com
+  // pequenas diferenças de grafia entre o plano e o catálogo do EXCIA.
+  const chave = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+  const sharesNorm = (lista) => {
+    const max = Math.max(0, ...lista.map((s) => s.pct || 0));
+    const m = {};
+    for (const s of lista) m[chave(s.chave)] = max ? Math.min((s.pct || 0) / max, 1) : 0;
+    return m;
+  };
+  const afMarca = sharesNorm(dna.participacao.marca);
+  const afGrupo = sharesNorm(dna.participacao.grupo);
+  const afFamilia = sharesNorm(dna.participacao.familia);
+  const afTier = normalizaShares(dna.distribuicao.tier);
+  const tierShare = Object.fromEntries(dna.distribuicao.tier.map((t) => [t.chave, t.pct]));
+  const tierDominante = dna.tier_dominante;
+  const tierDesafio = [...dna.distribuicao.tier].sort((a, b) => a.pct - b.pct)[0]?.chave || null;
+  const tamShare = new Map(dna.distribuicao.tamanho.map((t) => [t.chave, t.pct / 100]));
+  const estampado = dna.pct_estampado >= 30; // cliente gosta de estampa/decoração
+  const cresc = crescimentoPorGrupo(codcli);
+
+  // Normaliza faixa oficial do plano para casar com as chaves do cliente.
+  const normFaixa = (f) => {
+    const s = (f || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+    return s.startsWith('ENTR') ? 'Entrada' : s.startsWith('PREM') ? 'Premium' : 'Médio';
+  };
+  const temDecor = (itens) => (itens || []).some((x) => /estampa|bordado|paet|perola|p.rola|strass|renda|laise|tule|pedraria/i.test(x));
+
+  const avaliados = produtos.map((pr) => {
+    const faixa = normFaixa(pr.faixa);
+    const sizes = sizesDaGrade(pr.tam);
+    const comp = {
+      marca: afMarca[chave(pr.m)] || 0,
+      grupo: afGrupo[chave(pr.grupo)] || 0,
+      familia: pr.fam ? (afFamilia[chave(pr.fam)] || 0) : 0,
+      tier: afTier[faixa] || 0,
+      tam: sizes.length ? Math.min(sizes.reduce((s, t) => s + (tamShare.get(t) || 0), 0) * 1.5, 1) : 0,
+      estetica: (estampado && temDecor(pr.itens)) ? 1 : (!estampado && !temDecor(pr.itens)) ? 0.6 : 0.2,
+    };
+    const PESOS = { marca: 0.22, grupo: 0.24, familia: 0.08, tier: 0.20, tam: 0.16, estetica: 0.10 };
+    let score = 0; for (const [k, w] of Object.entries(PESOS)) score += Math.min(comp[k], 1) * w;
+    return { pr, faixa, comp, score: Math.max(0, Math.min(Math.round(score * 100), 100)) };
+  });
+
+  const papelDe = (a) => {
+    const core = a.comp.marca >= 0.5 && a.comp.grupo >= 0.4;
+    if (core && a.faixa === tierDominante && a.score >= 55) return 'ALTO_GIRO';
+    if (a.comp.grupo >= 0.4 && a.faixa === tierDesafio && a.score >= 40) return 'DESAFIO';
+    if (a.comp.marca >= 0.45 && a.score >= 48) return 'TARGET';
+    if (core && a.score >= 50) return 'ALTO_GIRO';
+    if (a.score >= 42) return 'DESAFIO';
+    return null;
+  };
+
+  const grupos = { ALTO_GIRO: [], TARGET: [], DESAFIO: [] };
+  for (const a of avaliados) { const t = papelDe(a); if (t) grupos[t].push(a); }
+  const crescN = {}; for (const [k, v] of Object.entries(cresc)) crescN[chave(k)] = v;
+  const fmt = (a, papel) => montarRecPlano(a, dna, { tierShare, tierDominante, tierDesafio, papel, cresc: crescN, chave });
+  for (const t of Object.keys(grupos)) {
+    grupos[t] = grupos[t].sort((x, y) => y.score - x.score).slice(0, topPorPapel).map((a) => fmt(a, t));
+  }
+
+  const financeiro = {};
+  for (const t of Object.keys(grupos)) financeiro[t] = Math.round(grupos[t].reduce((s, r) => s + r.grade.valor_estimado, 0));
+  financeiro.total = Object.values(financeiro).reduce((s, v) => s + v, 0);
+
+  return {
+    fonte: 'plano2027',
+    resumo: {
+      colecao: `PLANO:${col}`, desc_colecao: col === 'INVERNO' ? 'Inverno 2027' : 'Tropical 2027',
+      produtos_no_plano: produtos.length,
+      tier_dominante: tierDominante, tier_desafio: tierDesafio,
+      total_recomendado: grupos.ALTO_GIRO.length + grupos.TARGET.length + grupos.DESAFIO.length,
+    },
+    crescimento_por_tipo: cresc,
+    recomendacoes: grupos, financeiro,
+    dna_resumo: { pecas: dna.pecas_total, cobertura: dna.cobertura },
+  };
+}
+
+function montarRecPlano(a, dna, ctx) {
+  const { pr, faixa } = a;
+  const sizes = sizesDaGrade(pr.tam);
+  // Grade sugerida: peças típicas por produto do cliente, distribuídas pela
+  // participação histórica de tamanhos (restrita à grade do produto).
+  const porSku = Math.min(Math.max(dna.qtd_tipica_por_produto || sizes.length, sizes.length || 1), (sizes.length || 1) * 3);
+  const pesos = sizes.map((t) => {
+    const h = dna.distribuicao.tamanho.find((x) => x.chave === t);
+    return { tam: t, peso: h ? h.pct : 0 };
+  });
+  const somaP = pesos.reduce((s, p) => s + p.peso, 0) || sizes.length;
+  if (pesos.every((p) => p.peso === 0)) pesos.forEach((p) => { p.peso = 1; });
+  const somaF = pesos.reduce((s, p) => s + p.peso, 0);
+  let grade = pesos.map((p) => ({ tam: p.tam, pct: round1((p.peso / somaF) * 100), qtd: Math.round((p.peso / somaF) * porSku) }));
+  let soma = grade.reduce((s, g) => s + g.qtd, 0); let i = 0;
+  while (soma !== porSku && grade.length) {
+    const g = grade[i % grade.length];
+    if (soma < porSku) { g.qtd++; soma++; } else if (g.qtd > 0) { g.qtd--; soma--; } else { i++; continue; }
+    i++;
+  }
+  grade = grade.filter((g) => g.qtd > 0);
+  const qtdTotal = grade.reduce((s, g) => s + g.qtd, 0);
+  const preco = Number(pr.atac || pr.pm || 0);
+  const cg = ctx.cresc[ctx.chave(pr.grupo)];
+
+  return {
+    codigo: pr.cod, descricao: pr.desc || pr.tp, marca: pr.m, grupo: pr.grupo, tipo: pr.tp,
+    familia: pr.fam, tecido: pr.tec || null, itens: pr.itens || [],
+    grade_nome: pr.tam, vol_planejado: pr.vol || null,
+    preco_tabela: preco, preco_varejo: Number(pr.varejo || 0),
+    tier: faixa, papel: ctx.papel, score: a.score,
+    crescimento_tipo: cg ? { pct: cg.pct, atual: cg.atual, anterior: cg.anterior } : null,
+    justificativa: justificarPlano(a, dna, ctx, cg),
+    grade: { qtd_total: qtdTotal, por_tamanho: grade, valor_estimado: Math.round(qtdTotal * preco * 100) / 100 },
+    tem_imagem_plano: true,
+  };
+}
+
+function justificarPlano(a, dna, ctx, cg) {
+  const { pr, faixa, comp } = a;
+  const partes = [];
+  const shareN = (lista, val) => lista.find((s) => ctx.chave(s.chave) === ctx.chave(val))?.pct;
+  if (comp.marca >= 0.5) { const sm = shareN(dna.participacao.marca, pr.m); if (sm) partes.push(`marca ${pr.m} = ${sm}% do histórico`); }
+  if (comp.grupo >= 0.5) { const sg = shareN(dna.participacao.grupo, pr.grupo); if (sg) partes.push(`${pr.grupo} representa ${sg}% das peças`); }
+  if (ctx.papel === 'DESAFIO' && faixa === ctx.tierDesafio) partes.push(`faixa ${faixa} pouco explorada (${ctx.tierShare?.[faixa] ?? 0}%) — ampliar participação`);
+  else if (ctx.tierShare?.[faixa] != null) partes.push(`faixa ${faixa}, onde concentra ${ctx.tierShare[faixa]}%`);
+  if (comp.tam >= 0.5) partes.push(`grade ${pr.tam} nos tamanhos que mais compra`);
+  if (comp.estetica >= 1) partes.push('estética (estampa/bordado) alinhada ao histórico');
+  if (cg && cg.pct != null) partes.push(`${pr.grupo} ${cg.pct >= 0 ? 'cresceu' : 'caiu'} ${Math.abs(cg.pct)}% vs ano anterior`);
+  if (!partes.length) partes.push('aderência distribuída — sem fator dominante');
+  return partes.join('; ') + '.';
 }
 
 // Grade sugerida — números 100% derivados do histórico estruturado.

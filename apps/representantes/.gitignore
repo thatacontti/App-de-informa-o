@@ -5,3 +5,6 @@ public/uploads/*
 !public/uploads/.gitkeep
 .env
 *.log
+
+# base de imagens do plano (grande; enviada ao servidor via deploy)
+data/plano_2027/imagens.json
