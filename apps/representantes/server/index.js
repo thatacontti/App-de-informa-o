@@ -14,6 +14,7 @@ import { requireAuth, requireAuthPage, requireRole, isDiretoria } from './auth.j
 import { seed } from './seed.js';
 import { painelDisponivel, resolveRepNome, listRepsPainel, buildPainelRep } from './lib/painelRep.js';
 import { intel } from './routes/intel.js';
+import { catalogo } from './routes/catalogo.js';
 import { agendarSync } from './lib/intelSync.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -44,6 +45,7 @@ app.use(express.json({ limit: '25mb' })); // fotos base64 na prescrição
 // ---- API ----
 app.use('/api', api);
 app.use('/api/intel', intel);
+app.use('/api/catalogo', catalogo);
 
 // ---- estáticos ----
 app.use('/assets', express.static(path.join(PUBLIC, 'assets'), { maxAge: '7d' }));
@@ -95,6 +97,10 @@ app.get(['/colecao', '/painel-colecao', '/painel_colecao.html'], (req, res) =>
 // Inteligência de Compra e Sugestão de Pedido (página Inteligência do Cliente).
 app.get(['/inteligencia', '/inteligencia.html'], requireAuthPage, (req, res) =>
   renderView(res, 'inteligencia.html', {}));
+
+// Catálogo de Produtos por Coleção (produto x cor x imagem).
+app.get(['/catalogo', '/catalogo.html'], requireAuthPage, (req, res) =>
+  renderView(res, 'catalogo.html', {}));
 
 // Painel V27 POR REPRESENTANTE (M1): recorte segregado no servidor.
 // Representante abre o próprio; diretoria/gestão escolhe via ?rep= (picker sem parâmetro).

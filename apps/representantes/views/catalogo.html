@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catálogo de Produtos · Grupo Catarina</title>
+<style>
+:root{--bg:#ECEDEF;--card:#fff;--tx:#1f2937;--mut:#6b7280;--blue:#2563EB;--line:#e5e7eb;
+--ok:#059669;--warn:#d97706;--bad:#dc2626;--r:20px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
+.top{background:#fff;border-bottom:1px solid var(--line);padding:14px 28px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
+.top h1{font-size:1.05rem;font-weight:700}
+.top small{color:var(--mut);font-weight:400;display:block;font-size:.72rem}
+.top .sp{flex:1}
+a.lnk{color:var(--blue);text-decoration:none;font-weight:600;font-size:.82rem}
+.btn{background:var(--blue);color:#fff;border:none;border-radius:12px;padding:10px 18px;font-weight:600;font-size:.85rem;cursor:pointer;font-family:inherit}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.ghost{background:#fff;color:var(--blue);border:1.5px solid var(--blue)}
+.wrap{max-width:1240px;margin:0 auto;padding:22px 22px 120px}
+.filtros{background:#fff;border-radius:var(--r);padding:18px 22px;box-shadow:0 2px 10px rgba(0,0,0,.05);display:flex;gap:14px;align-items:end;flex-wrap:wrap}
+.filtros label{font-size:.68rem;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px}
+.filtros input,.filtros select{border:1.5px solid var(--line);border-radius:11px;padding:9px 12px;font-size:.9rem;font-family:inherit;background:#fff}
+.filtros input:focus,.filtros select:focus{outline:none;border-color:var(--blue)}
+.chk{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--tx);padding-bottom:9px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:16px}
+.kpi{background:#fff;border-radius:14px;padding:13px 16px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.kpi .l{font-size:.64rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);font-weight:600}
+.kpi .v{font-size:1.35rem;font-weight:700;margin-top:3px}
+.alertbar{margin-top:14px;background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:10px 16px;font-size:.8rem;color:#92400e;display:none}
+.alertbar b{color:#b45309}
+.prods{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px;margin-top:18px}
+.prod{background:#fff;border-radius:16px;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow:hidden;display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .15s}
+.prod:hover{box-shadow:0 6px 18px rgba(0,0,0,.12)}
+.prod .im{width:100%;aspect-ratio:3/4;object-fit:cover;background:#f1f5f9}
+.prod .noimg{width:100%;aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:.72rem;background:#f1f5f9}
+.prod .bd{padding:11px 13px}
+.prod .ref{font-family:ui-monospace,monospace;font-size:.68rem;color:var(--mut)}
+.prod .nm{font-size:.84rem;font-weight:600;line-height:1.25;margin:2px 0 6px;min-height:2.1em}
+.sw{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.sw span{font-size:.62rem;border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--mut);background:#f8fafc}
+.sw span.off{opacity:.45;text-decoration:line-through}
+.badge{display:inline-block;font-size:.6rem;font-weight:700;border-radius:6px;padding:2px 7px;margin-top:7px}
+.badge.on{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}
+.badge.no{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+.empty{text-align:center;color:var(--mut);padding:60px 20px;font-size:.9rem}
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+.modal .box{background:#fff;border-radius:20px;max-width:820px;width:100%;max-height:88vh;overflow:auto;padding:24px 28px}
+.modal h2{font-size:1.05rem;margin-bottom:4px}
+.modal .cod{font-family:ui-monospace,monospace;color:var(--mut);font-size:.78rem}
+.gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;margin:16px 0}
+.gal .c{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.gal .c img,.gal .c .noimg{width:100%;aspect-ratio:3/4;object-fit:cover;background:#f1f5f9}
+.gal .c .cap{padding:6px 8px;font-size:.72rem}
+.gal .c .cap .a{font-size:.6rem;color:var(--ok)} .gal .c .cap .i{font-size:.6rem;color:var(--bad)}
+.facts{font-size:.84rem}
+.facts div{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #eef1f4}
+</style>
+</head>
+<body>
+<div class="top">
+  <div><h1>Catálogo de Produtos <small>Consulta produto · cor · imagem — EXCIA</small></h1></div>
+  <div class="sp"></div>
+  <a class="lnk" href="/">← Plataforma</a>
+  <a class="lnk" href="/logout">Sair</a>
+</div>
+
+<div class="wrap">
+  <div class="filtros">
+    <div><label>Temporada</label><select id="fTemp"></select></div>
+    <div><label>Ano</label><select id="fAno"></select></div>
+    <div><label>Coleção específica</label><select id="fCol"><option value="">— (usar temporada/ano)</option></select></div>
+    <div><label>Buscar (ref./código/descrição)</label><input id="fQ" placeholder="ex.: K1100006 ou vestido"></div>
+    <div><label>Imagem</label><select id="fImg"><option value="">Todas</option><option value="com">Com imagem</option><option value="sem">Sem imagem</option></select></div>
+    <div class="chk"><input type="checkbox" id="fInativas"><label style="margin:0;text-transform:none;font-size:.8rem;color:var(--tx);font-weight:500">incluir cores inativas</label></div>
+    <button class="btn" id="btnGo">Consultar</button>
+    <button class="btn ghost" id="btnCsv">Exportar CSV</button>
+  </div>
+
+  <div class="kpis" id="kpis" style="display:none"></div>
+  <div class="alertbar" id="alertbar"></div>
+  <div id="res"></div>
+</div>
+
+<div class="modal" id="modal"><div class="box" id="modalBox"></div></div>
+
+<script>
+const $=(s)=>document.querySelector(s);
+async function api(p){const r=await fetch(p,{credentials:'same-origin'});if(r.status===401){location.href='/';return null}if(!r.ok)throw new Error('erro '+r.status);return r.json()}
+const el=(h)=>{const d=document.createElement('div');d.innerHTML=h.trim();return d.firstChild};
+let COLECOES=[];
+
+function paramsAtuais(){
+  const p=new URLSearchParams();
+  if($('#fCol').value) p.set('colecao',$('#fCol').value);
+  else{ if($('#fTemp').value)p.set('temporada',$('#fTemp').value); if($('#fAno').value)p.set('ano',$('#fAno').value); }
+  if($('#fQ').value.trim())p.set('q',$('#fQ').value.trim());
+  if($('#fImg').value)p.set('comImagem',$('#fImg').value);
+  if($('#fInativas').checked)p.set('corAtiva','todas');
+  return p;
+}
+
+async function initFiltros(){
+  COLECOES=await api('/api/catalogo/colecoes')||[];
+  const temps=[...new Set(COLECOES.map(c=>c.temporada).filter(Boolean))];
+  const anos=[...new Set(COLECOES.map(c=>c.ano).filter(Boolean))].sort((a,b)=>b-a);
+  const opt=(v,t=v)=>`<option value="${v}">${t}</option>`;
+  $('#fTemp').innerHTML=temps.map(t=>opt(t)).join('')||opt('Inverno');
+  $('#fAno').innerHTML=anos.map(a=>opt(a)).join('')||opt(2027);
+  $('#fCol').innerHTML='<option value="">— (usar temporada/ano)</option>'+
+    COLECOES.map(c=>opt(c.codigo,`${c.codigo} · ${c.descricao}`)).join('');
+  // padrão: Inverno / 2027 se existir
+  if(temps.includes('Inverno'))$('#fTemp').value='Inverno';
+  if(anos.includes(2027))$('#fAno').value='2027';
+}
+
+function consultar(){
+  $('#res').innerHTML='<div class="empty">Consultando…</div>';
+  api('/api/catalogo?'+paramsAtuais().toString()).then(render).catch(e=>{
+    $('#res').innerHTML='<div class="empty">Falha: '+e.message+'</div>';
+  });
+}
+
+function render(d){
+  if(!d)return;
+  const m=d.metricas;
+  const cols=d.colecoes.map(c=>`${c.codigo} ${c.descricao}`).join(' · ')||'nenhuma coleção correspondente';
+  $('#kpis').style.display='grid';
+  $('#kpis').innerHTML=[
+    ['Coleção(ões)',cols],
+    ['Produtos',m.qtd_produtos],
+    ['Linhas (produto×cor)',m.qtd_linhas],
+    ['Cores/produto (méd.)',m.cores_por_produto_medio],
+    ['Produtos sem cor',m.produtos_sem_cor],
+    ['Cobertura de imagem',m.pct_cobertura_imagem==null?'—':m.pct_cobertura_imagem+'%'],
+  ].map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v" style="font-size:${String(v).length>14?'.9rem':'1.35rem'}">${v}</div></div>`).join('');
+
+  const ab=$('#alertbar');
+  if(d.total_alertas){
+    const cont={};for(const a of d.alertas)cont[a.tipo]=(cont[a.tipo]||0)+1;
+    ab.style.display='block';
+    ab.innerHTML='<b>Qualidade:</b> '+d.total_alertas+' alerta(s) — '+
+      Object.entries(cont).map(([k,v])=>`${v}× ${k.replace(/_/g,' ')}`).join(' · ');
+  }else ab.style.display='none';
+
+  // agrupa linhas por produto p/ a grade (uma miniatura por produto)
+  const byProd=new Map();
+  for(const l of d.linhas){
+    if(!byProd.has(l.codigo))byProd.set(l.codigo,{...l,cores:[]});
+    if(l.cor)byProd.get(l.codigo).cores.push(l);
+  }
+  const prods=[...byProd.values()];
+  if(!prods.length){$('#res').innerHTML='<div class="empty">Nenhum produto para os filtros escolhidos.</div>';return}
+
+  const capa=(p)=>{const c=p.cores.find(x=>x.possui_imagem==='Sim')||p.cores[0]||p;return c.img_url};
+  $('#res').innerHTML='<div class="prods">'+prods.map(p=>`
+    <div class="prod" data-cod="${p.codigo}">
+      <img class="im" loading="lazy" src="${capa(p)}" onerror="this.outerHTML='<div class=noimg>sem imagem</div>'">
+      <div class="bd">
+        <div class="ref">${p.referencia}${p.referencia!==p.codigo?` · ${p.codigo}`:''}</div>
+        <div class="nm">${p.descricao||'<i style=color:#dc2626>sem descrição</i>'}</div>
+        <div class="sw">${(p.cores.length?p.cores:[{cor:'—',desc_cor:'sem cor',cor_ativa:''}]).slice(0,8).map(c=>
+          `<span class="${c.cor_ativa==='Não'?'off':''}" title="${c.cor} ${c.desc_cor||''}">${c.desc_cor||c.cor}</span>`).join('')}
+          ${p.cores.length>8?`<span>+${p.cores.length-8}</span>`:''}</div>
+        <span class="badge ${p.status==='Não'?'no':'on'}">${p.status==='Não'?'Inativo':'Ativo'}</span>
+      </div>
+    </div>`).join('')+'</div>';
+  document.querySelectorAll('.prod').forEach(x=>x.onclick=()=>abrir(x.dataset.cod));
+}
+
+async function abrir(cod){
+  const d=await api('/api/catalogo/produto/'+encodeURIComponent(cod));if(!d)return;
+  $('#modalBox').innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:start;gap:12px">
+      <div><h2>${d.descricao||'(sem descrição)'}</h2>
+        <div class="cod">Ref. ${d.referencia} · Cód EXCIA ${d.codigo} · ${d.marca||''} · Coleção ${d.colecao||''}</div></div>
+      <button class="btn ghost" onclick="$('#modal').style.display='none'">Fechar</button>
+    </div>
+    <div class="gal">${(d.cores.length?d.cores:[{cor:'',desc_cor:'sem cor cadastrada',ativa:''}]).map(c=>`
+      <div class="c"><img src="${c.img_url||''}" loading="lazy" onerror="this.outerHTML='<div class=noimg>sem imagem</div>'">
+        <div class="cap"><b>${c.desc_cor||c.cor||'—'}</b><br><span class="${c.ativa==='Não'?'i':'a'}">${c.cor?('cor '+c.cor+' · '+(c.ativa==='Não'?'inativa':'ativa')):''}</span></div></div>`).join('')}</div>
+    <div class="facts">
+      <div><span>Tamanhos</span><b>${(d.tams||[]).join(', ')||'—'}</b></div>
+      <div><span>Linha / Grupo / Família</span><b>${[d.linha,d.grupo,d.familia].filter(Boolean).join(' · ')||'—'}</b></div>
+      <div><span>Preço de tabela</span><b>${d.preco_tabela?('R$ '+d.preco_tabela.toLocaleString('pt-BR')):'—'}</b></div>
+      <div><span>Status</span><b>${d.status==='Não'?'Inativo':'Ativo'}</b></div>
+      <div><span>Cadastro / Alteração</span><b>${d.data_cad||'—'} / ${d.dt_altera||'—'}</b></div>
+    </div>`;
+  $('#modal').style.display='flex';
+}
+$('#modal').onclick=(e)=>{if(e.target.id==='modal')$('#modal').style.display='none'};
+
+$('#btnGo').onclick=consultar;
+$('#fQ').addEventListener('keydown',e=>{if(e.key==='Enter')consultar()});
+$('#btnCsv').onclick=()=>{location.href='/api/catalogo/export.csv?'+paramsAtuais().toString()};
+
+initFiltros().then(consultar);
+</script>
+</body>
+</html>
