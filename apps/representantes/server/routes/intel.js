@@ -13,7 +13,7 @@ import {
   pesquisaSocial, clientesSemelhantes,
 } from '../lib/intelMotor.js';
 import { colecoesPlano, imagemPlano, planoDisponivel } from '../lib/plano2027.js';
-import { carteiraPontos, geocodarPendentes, geocodar, listarProspects, addProspect, removerProspect, descobrirLojas, googleConfigurado, ultimaColecaoBase } from '../lib/intelRoteiro.js';
+import { carteiraPontos, geocodarPendentes, geocodar, listarProspects, addProspect, removerProspect, descobrirLojas, descobrirRegiao, googleConfigurado, ultimaColecaoBase } from '../lib/intelRoteiro.js';
 
 export const intel = Router();
 intel.use(requireAuth);
@@ -292,6 +292,16 @@ intel.post('/roteiro/descobrir', async (req, res) => {
   try {
     const r = await descobrirLojas({ cidade, uf, termo, raio: Number(raio) || 0 });
     res.json({ google_ativo: googleConfigurado(), ...r });
+  } catch (e) { res.status(502).json({ error: e.message }); }
+});
+
+// Descoberta na REGIÃO do representante (cidades da carteira).
+intel.post('/roteiro/descobrir-regiao', async (req, res) => {
+  const esc_ = escopoRoteiro(req);
+  if (!esc_.repCod && !esc_.uf) return res.status(400).json({ error: 'informe rep ou uf' });
+  try {
+    const r = await descobrirRegiao({ ...esc_, termo: req.body?.termo, maxCidades: Number(req.body?.maxCidades) || 12 });
+    res.json(r);
   } catch (e) { res.status(502).json({ error: e.message }); }
 });
 

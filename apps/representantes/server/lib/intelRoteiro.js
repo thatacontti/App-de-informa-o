@@ -215,6 +215,42 @@ export async function descobrirLojas({ cidade, uf, termo = 'loja de moda infanti
   } finally { clearTimeout(t); }
 }
 
+// Descoberta na REGIÃO do representante: varre as cidades onde ele já atende
+// (carteira) e busca lojas de moda infantil, deduplicando contra os clientes
+// atuais. Bounded por maxCidades (cada cidade = 1 chamada Google Places).
+export async function descobrirRegiao({ repCod = null, uf = null, termo = 'loja de moda infantil', maxCidades = 12 }) {
+  const pontos = carteiraPontos({ repCod, uf });
+  // cidades únicas priorizando as que o rep MENOS atende (mais espaço p/ prospectar)
+  const porCidade = new Map();
+  for (const p of pontos) {
+    if (!p.cidade) continue;
+    const k = `${norm(p.cidade)}|${norm(p.uf)}`;
+    const e = porCidade.get(k) || { cidade: p.cidade, uf: p.uf, clientes: 0 };
+    e.clientes++; porCidade.set(k, e);
+  }
+  const cidades = [...porCidade.values()].sort((a, b) => a.clientes - b.clientes).slice(0, Math.min(maxCidades, 30));
+  const nomesClientes = new Set(pontos.map((p) => norm(p.nome)));
+
+  if (!googleConfigurado()) {
+    return {
+      google_ativo: false,
+      erro: 'busca automática desativada (sem chave do Google Places)',
+      cidades_alvo: cidades.map((c) => ({ cidade: c.cidade, uf: c.uf, clientes: c.clientes, buscas: linkBuscas(termo, `${c.cidade} ${c.uf}`) })),
+    };
+  }
+  const lojas = []; const vistos = new Set();
+  for (const c of cidades) {
+    const r = await descobrirLojas({ cidade: c.cidade, uf: c.uf, termo, raio: 10 });
+    for (const L of (r.lojas || [])) {
+      const nk = norm(L.nome);
+      if (nomesClientes.has(nk) || vistos.has(nk + '|' + norm(L.cidade))) continue; // já é cliente / repetida
+      vistos.add(nk + '|' + norm(L.cidade));
+      lojas.push({ ...L, cidade_busca: c.cidade });
+    }
+  }
+  return { google_ativo: true, cidades_buscadas: cidades.length, termo, total: lojas.length, lojas };
+}
+
 // ---- prospects ----
 export function listarProspects(repCod) {
   return idb.prepare('SELECT * FROM prospects WHERE rep_cod IS NULL OR rep_cod=? ORDER BY criado_em DESC')
