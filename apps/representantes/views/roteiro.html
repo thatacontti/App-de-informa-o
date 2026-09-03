@@ -88,13 +88,27 @@ input:focus,select:focus{outline:none;border-color:var(--blue)}
 const BOOT=window.__BOOT__||{};
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-let map,layerPts,layerRota,origem=null,PONTOS=[],PROSPECTS=[];
+let map,layerPts,layerRota,layerCand,origem=null,PONTOS=[],PROSPECTS=[],CANDIDATOS=[];
 
 async function api(path,opt){const r=await fetch(path,opt);if(r.status===401){location.href='/';throw new Error('sessão')}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j;}
 
 map=L.map('map').setView([-15.78,-47.93],4);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
-layerPts=L.layerGroup().addTo(map);layerRota=L.layerGroup().addTo(map);
+layerPts=L.layerGroup().addTo(map);layerRota=L.layerGroup().addTo(map);layerCand=L.layerGroup().addTo(map);
+
+// Plota as lojas descobertas (candidatas) no mapa com pino amarelo, já visíveis.
+function desenharCandidatos(){
+  layerCand.clearLayers();
+  const cc=CANDIDATOS.filter(c=>c.lat!=null&&c.lon!=null);
+  for(const L of cc){
+    L2marker(L);
+  }
+  if(cc.length){const g=L.featureGroup([...layerPts.getLayers(),...layerCand.getLayers()]);try{map.fitBounds(g.getBounds().pad(.2));}catch{}}
+}
+function L2marker(loja){
+  L.marker([loja.lat,loja.lon],{icon:L.divIcon({className:"",html:`<div style="background:#eab308;color:#3a2e00;width:20px;height:20px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center"><span style="transform:rotate(45deg);font-size:10px">🛍️</span></div>`,iconSize:[20,20],iconAnchor:[10,20]})})
+    .bindPopup(`<b>${esc(loja.nome)}</b><br>${esc(loja.endereco||loja.cidade||"")}<br><i>nova loja (Google)</i>`).addTo(layerCand);
+}
 
 // escopo: diretoria escolhe rep/UF; representante usa a própria carteira
 if(BOOT.papel==='representante'){$('escopoBox').innerHTML='<div class="stat">Sua carteira</div>';}
@@ -228,9 +242,20 @@ async function mapearRegiao(){
       return;
     }
     if(!r.lojas.length){$('descResultado').innerHTML=`Buscei em ${r.cidades_buscadas} cidades e não achei lojas novas.`;return;}
-    $('descResultado').innerHTML=`<div style="font-size:.74rem;color:var(--mut);margin-bottom:6px"><b>${r.total}</b> lojas novas em ${r.cidades_buscadas} cidades da região:</div>`+
+    CANDIDATOS=r.lojas.filter(L=>L.lat!=null);
+    desenharCandidatos();
+    $('descResultado').innerHTML=`<div style="font-size:.74rem;color:var(--mut);margin-bottom:6px"><b>${r.total}</b> lojas novas em ${r.cidades_buscadas} cidades — já no mapa (🛍️ amarelo):</div>`+
+      `<button class="btn ok mini" style="width:100%;margin-bottom:8px" onclick="addTodasCandidatas()">+ Adicionar todas à rota (${CANDIDATOS.length})</button>`+
       r.lojas.map(cardLoja).join('');
   }catch(e){$('descResultado').innerHTML='<span style="color:var(--bad)">'+esc(e.message)+'</span>';}
+}
+async function addTodasCandidatas(){
+  const lista=CANDIDATOS.slice();
+  for(const L of lista){await addDescoberta(L,true);}
+  CANDIDATOS=[];layerCand.clearLayers();
+  desenhar();renderLegenda();
+  if(origem&&todosPontos().length>=2)otimizar();
+  $('descResultado').innerHTML+='<div style="color:var(--ok);font-size:.75rem;margin-top:6px">'+lista.length+' lojas adicionadas à rota.</div>';
 }
 async function descobrir(){
   const cidade=$('dCidade').value.trim(),uf=$('dUf').value.trim(),termo=$('dTermo').value.trim()||'loja de moda infantil';
@@ -244,24 +269,20 @@ async function descobrir(){
       return;
     }
     if(!r.lojas.length){$('descResultado').innerHTML='Nenhuma loja encontrada. Tente outro termo/cidade.';return;}
-    $('descResultado').innerHTML=`<div style="font-size:.72rem;color:var(--mut);margin-bottom:6px">${r.total} lojas encontradas em ${esc(cidade)}:</div>`+
-      r.lojas.map((L,i)=>`<div style="border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:6px">
-        <div style="font-weight:600;font-size:.82rem">${esc(L.nome)}${L.rating?` <span style="color:var(--warn)">★${L.rating}</span> <span style="color:var(--mut);font-size:.66rem">(${L.avaliacoes})</span>`:''}</div>
-        <div style="font-size:.72rem;color:var(--mut)">${esc(L.endereco||'')}</div>
-        <div style="font-size:.72rem;color:var(--mut)">${L.telefone?esc(L.telefone):''}${L.site?` · <a href="${esc(L.site)}" target="_blank" rel="noopener">site</a>`:''}</div>
-        <div class="row" style="margin-top:6px">
-          <button class="btn ok mini" onclick='addDescoberta(${JSON.stringify(L).replace(/'/g,"&#39;")})'>+ Adicionar à rota</button>
-          ${(L.buscas||[]).map(b=>`<a href="${esc(b.url)}" target="_blank" rel="noopener" class="btn ghost mini" style="text-decoration:none">${esc(b.label)}</a>`).join('')}
-        </div></div>`).join('');
+    CANDIDATOS=r.lojas.filter(L=>L.lat!=null);
+    desenharCandidatos();
+    $('descResultado').innerHTML=`<div style="font-size:.72rem;color:var(--mut);margin-bottom:6px">${r.total} lojas em ${esc(cidade)} — já no mapa (🛍️):</div>`+
+      `<button class="btn ok mini" style="width:100%;margin-bottom:8px" onclick="addTodasCandidatas()">+ Adicionar todas à rota (${CANDIDATOS.length})</button>`+
+      r.lojas.map(cardLoja).join('');
   }catch(e){$('descResultado').innerHTML='<span style="color:var(--bad)">'+esc(e.message)+'</span>';}
 }
-async function addDescoberta(L){
+async function addDescoberta(L,silent){
   try{
     const p=await api('/api/intel/roteiro/prospects',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
       nome:L.nome,cidade:L.cidade,uf:L.uf,endereco:L.endereco,lat:L.lat,lon:L.lon,origem:'google',rep:$('fRep')?.value.trim()})});
     PROSPECTS.push({id:p.id,nome:p.nome,cidade:p.cidade,uf:p.uf,origem:'google',lat:p.lat,lon:p.lon,tipo:'prospect'});
-    desenhar();
-  }catch(e){alert('Falha ao adicionar: '+e.message)}
+    if(!silent){desenhar();renderLegenda();}
+  }catch(e){if(!silent)alert('Falha ao adicionar: '+e.message)}
 }
 async function addProspect(){
   const nome=$('pNome').value.trim();if(!nome){alert('Informe o nome');return;}
