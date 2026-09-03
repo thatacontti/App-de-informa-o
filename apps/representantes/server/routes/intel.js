@@ -13,6 +13,7 @@ import {
   pesquisaSocial, clientesSemelhantes,
 } from '../lib/intelMotor.js';
 import { colecoesPlano, imagemPlano, planoDisponivel } from '../lib/plano2027.js';
+import { carteiraPontos, geocodarPendentes, geocodar, listarProspects, addProspect, removerProspect } from '../lib/intelRoteiro.js';
 
 export const intel = Router();
 intel.use(requireAuth);
@@ -231,6 +232,70 @@ intel.get('/feedback', (req, res) => {
     ORDER BY criado_em DESC LIMIT 200
   `).all(...(isDiretoria(req.user) ? [] : [String(req.user.cod)]));
   res.json(rows);
+});
+
+// ---- roteirização de visitas --------------------------------------------
+// Escopo: representante vê a própria carteira; diretoria usa ?rep= ou ?uf=.
+function escopoRoteiro(req) {
+  if (req.user.papel === 'representante') return { repCod: req.user.cod };
+  const rep = req.query.rep || req.body?.rep;
+  const uf = req.query.uf || req.body?.uf;
+  return { repCod: rep ? String(rep) : null, uf: uf ? String(uf).toUpperCase() : null };
+}
+
+intel.get('/roteiro/carteira', (req, res) => {
+  const esc_ = escopoRoteiro(req);
+  if (!esc_.repCod && !esc_.uf) return res.status(400).json({ error: 'informe rep ou uf' });
+  const pontos = carteiraPontos(esc_);
+  const prospects = listarProspects(esc_.repCod).map((p) => ({
+    id: p.id, nome: p.nome, cidade: p.cidade, uf: p.uf, cep: p.cep, origem: p.origem,
+    lat: p.lat, lon: p.lon, tipo: 'prospect',
+  }));
+  const pendentes = pontos.filter((p) => p.lat == null).length + prospects.filter((p) => p.lat == null).length;
+  res.json({ pontos, prospects, total: pontos.length, geocodados: pontos.filter((p) => p.lat != null).length, pendentes });
+});
+
+intel.post('/roteiro/geocodar', async (req, res) => {
+  const esc_ = escopoRoteiro(req);
+  if (!esc_.repCod && !esc_.uf) return res.status(400).json({ error: 'informe rep ou uf' });
+  try {
+    const pontos = carteiraPontos(esc_);
+    const feitos = await geocodarPendentes(pontos, Number(req.body?.limite) || 40);
+    const pendentes = carteiraPontos(esc_).filter((p) => p.lat == null).length;
+    res.json({ feitos, pendentes, geocodados: pontos.filter((p) => p.lat != null).length });
+  } catch (e) { res.status(502).json({ error: e.message }); }
+});
+
+intel.post('/roteiro/origem', async (req, res) => {
+  const { cep, cidade, uf } = req.body || {};
+  if (!cep && !cidade) return res.status(400).json({ error: 'informe cep ou cidade' });
+  try {
+    const r = await geocodar({ cep, cidade, uf });
+    if (!r) return res.status(404).json({ error: 'ponto de origem não localizado' });
+    res.json(r);
+  } catch (e) { res.status(502).json({ error: e.message }); }
+});
+
+intel.get('/roteiro/prospects', (req, res) => {
+  const esc_ = escopoRoteiro(req);
+  res.json(listarProspects(esc_.repCod || null));
+});
+intel.post('/roteiro/prospects', async (req, res) => {
+  const { nome, cidade, uf, cep, endereco, origem } = req.body || {};
+  if (!nome && !cep && !cidade) return res.status(400).json({ error: 'informe ao menos nome e cidade/CEP' });
+  try {
+    const p = await addProspect({
+      nome, cidade, uf, cep, endereco, origem: origem || 'manual',
+      repCod: req.user.papel === 'representante' ? req.user.cod : (req.body?.rep || null),
+      criadoPor: req.user.cod,
+    });
+    res.json(p);
+  } catch (e) { res.status(502).json({ error: e.message }); }
+});
+intel.delete('/roteiro/prospects/:id', (req, res) => {
+  const repCod = req.user.papel === 'representante' ? req.user.cod : null;
+  const n = removerProspect(Number(req.params.id), repCod);
+  res.json({ removidos: n });
 });
 
 // ---- imagem do produto (proxy + cache; token fica no servidor) ----------

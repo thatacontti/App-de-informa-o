@@ -84,6 +84,20 @@ CREATE TABLE IF NOT EXISTS img_cache (
   arquivo TEXT, base64 TEXT,
   atualizado_em TEXT
 );
+-- Roteirização: cache de geocodificação (OSM) e prospects.
+CREATE TABLE IF NOT EXISTS geocode (
+  chave TEXT PRIMARY KEY,     -- ex.: cep:88495000 | cid:TOLEDO|PR
+  lat REAL, lon REAL,
+  display TEXT, ok INTEGER DEFAULT 1,   -- ok=0 = não encontrado (cache negativo)
+  atualizado_em TEXT
+);
+CREATE TABLE IF NOT EXISTS prospects (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome TEXT, cidade TEXT, uf TEXT, cep TEXT, endereco TEXT,
+  origem TEXT,                -- google | instagram | manual
+  rep_cod TEXT, lat REAL, lon REAL,
+  obs TEXT, criado_por TEXT, criado_em TEXT DEFAULT (datetime('now','localtime'))
+);
 `);
 
 export function getSync(chave) {

@@ -102,6 +102,10 @@ app.get(['/inteligencia', '/inteligencia.html'], requireAuthPage, (req, res) =>
 app.get(['/catalogo', '/catalogo.html'], requireAuthPage, (req, res) =>
   renderView(res, 'catalogo.html', {}));
 
+// Roteirização de visitas (mapa + rota otimizada).
+app.get(['/roteiro', '/roteiro.html'], requireAuthPage, (req, res) =>
+  renderView(res, 'roteiro.html', { papel: req.user.papel }));
+
 // Painel V27 POR REPRESENTANTE (M1): recorte segregado no servidor.
 // Representante abre o próprio; diretoria/gestão escolhe via ?rep= (picker sem parâmetro).
 function paginaAviso(res, titulo, msg, status = 200) {
