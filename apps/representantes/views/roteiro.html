@@ -54,6 +54,7 @@ input:focus,select:focus{outline:none;border-color:var(--blue)}
       <button class="btn ghost mini" id="btnGeo" onclick="geocodar()">Localizar pendentes</button>
     </div>
     <div id="statCarteira" class="msg"></div>
+    <div id="legenda" style="display:flex;flex-direction:column;gap:5px;margin-top:8px"></div>
 
     <div class="sec">Rota</div>
     <button class="btn" onclick="otimizar()" style="width:100%">🧭 Otimizar rota</button>
@@ -108,8 +109,9 @@ async function carregar(){
   try{
     const d=await api('/api/intel/roteiro/carteira?'+qs);
     PONTOS=d.pontos;PROSPECTS=d.prospects;
-    desenhar();
-    $('statCarteira').innerHTML=`<b>${d.total}</b> clientes · <b>${d.geocodados}</b> no mapa · <b>${d.pendentes}</b> a localizar${d.pendentes?' — clique em "Localizar pendentes"':''}`;
+    desenhar();renderLegenda();
+    const uc=d.ultima_colecao?` · Ativo/Reativação vs <b>${esc(d.ultima_colecao.nome||'')}</b>`:'';
+    $('statCarteira').innerHTML=`<b>${d.total}</b> clientes · <b>${d.geocodados}</b> no mapa · <b>${d.pendentes}</b> a localizar${d.pendentes?' — clique em "Localizar pendentes"':''}${uc}`;
   }catch(e){alert('Falha: '+e.message)}
   b.disabled=false;b.textContent='Carregar clientes';
 }
@@ -118,28 +120,46 @@ async function geocodar(){
   const qs=escopoQS();
   const b=$('btnGeo');b.disabled=true;
   try{
-    let pend=1,voltas=0;
-    while(pend>0&&voltas<30){
-      const r=await api('/api/intel/roteiro/geocodar?'+qs,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({limite:40})});
-      pend=r.pendentes;voltas++;
-      b.textContent=`Localizando… (${r.pendentes} restam)`;
+    let rest=1,voltas=0;
+    while(rest>0&&voltas<60){
+      const r=await api('/api/intel/roteiro/geocodar?'+qs,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({limite:15})});
+      rest=r.cidades_restantes;voltas++;
+      b.textContent=`Localizando… (${r.pendentes} clientes restam)`;
       await carregarSilencioso();
+      otimizarSeTiver();
     }
     b.textContent='Localizar pendentes';
   }catch(e){alert('Falha: '+e.message)}
   b.disabled=false;
 }
-async function carregarSilencioso(){const qs=escopoQS();const d=await api('/api/intel/roteiro/carteira?'+qs);PONTOS=d.pontos;PROSPECTS=d.prospects;desenhar();$('statCarteira').innerHTML=`<b>${d.total}</b> clientes · <b>${d.geocodados}</b> no mapa · <b>${d.pendentes}</b> a localizar`;}
+async function carregarSilencioso(){const qs=escopoQS();const d=await api('/api/intel/roteiro/carteira?'+qs);PONTOS=d.pontos;PROSPECTS=d.prospects;desenhar();renderLegenda();$('statCarteira').innerHTML=`<b>${d.total}</b> clientes · <b>${d.geocodados}</b> no mapa · <b>${d.pendentes}</b> a localizar`;}
 
-function todosPontos(){return [...PONTOS,...PROSPECTS].filter(p=>p.lat!=null&&p.lon!=null);}
+const COR_STATUS={ativo:'#059669',reativacao:'#ea580c',sem_historico:'#94a3b8',prospect:'#7c3aed'};
+const ROTULO={ativo:'Ativo',reativacao:'Reativação',sem_historico:'Sem histórico',prospect:'Prospect'};
+const FILTRO={ativo:true,reativacao:true,sem_historico:true,prospect:true};
+function corDe(p){return p.tipo==='prospect'?COR_STATUS.prospect:(COR_STATUS[p.status]||'#2563EB');}
+function passaFiltro(p){return p.tipo==='prospect'?FILTRO.prospect:(FILTRO[p.status]!==false);}
+function todosPontos(){return [...PONTOS,...PROSPECTS].filter(p=>p.lat!=null&&p.lon!=null&&passaFiltro(p));}
+function otimizarSeTiver(){if(todosPontos().length>=2&&document.querySelector('.visita'))otimizar();}
+
+function toggleFiltro(k){FILTRO[k]=!FILTRO[k];desenhar();renderLegenda();}
+function renderLegenda(){
+  const cont={ativo:0,reativacao:0,sem_historico:0,prospect:0};
+  for(const p of PONTOS)cont[p.status]=(cont[p.status]||0)+1;
+  cont.prospect=PROSPECTS.length;
+  $('legenda').innerHTML=['ativo','reativacao','sem_historico','prospect'].map(k=>`
+    <label style="display:inline-flex;align-items:center;gap:5px;font-size:.74rem;cursor:pointer;opacity:${FILTRO[k]?1:.4}">
+      <input type="checkbox" ${FILTRO[k]?'checked':''} onchange="toggleFiltro('${k}')" style="margin:0">
+      <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${COR_STATUS[k]}"></span>
+      ${ROTULO[k]} <b>${cont[k]||0}</b></label>`).join('');
+}
 
 function desenhar(){
   layerPts.clearLayers();
   const pts=todosPontos();
   for(const p of pts){
-    const cor=p.tipo==='prospect'?'#d97706':'#2563EB';
-    L.circleMarker([p.lat,p.lon],{radius:6,color:'#fff',weight:1.5,fillColor:cor,fillOpacity:.9})
-      .bindPopup(`<b>${esc(p.nome)}</b><br>${esc(p.cidade||'')}/${esc(p.uf||'')}${p.tipo==='prospect'?'<br><i>prospect</i>':''}`)
+    L.circleMarker([p.lat,p.lon],{radius:6,color:'#fff',weight:1.5,fillColor:corDe(p),fillOpacity:.9})
+      .bindPopup(`<b>${esc(p.nome)}</b><br>${esc(p.cidade||'')}/${esc(p.uf||'')}<br><i>${p.tipo==='prospect'?'Prospect':ROTULO[p.status]||''}</i>`)
       .addTo(layerPts);
   }
   if(origem)L.marker([origem.lat,origem.lon]).addTo(layerPts).bindPopup('<b>Origem</b><br>'+esc(origem.display||'')).openPopup();
@@ -177,9 +197,9 @@ function otimizar(){
   layerRota.clearLayers();
   const linha=[[ini.lat,ini.lon],...seq.map(p=>[p.lat,p.lon])];
   L.polyline(linha,{color:'#2563EB',weight:3,opacity:.7,dashArray:'6 6'}).addTo(layerRota);
-  seq.forEach((p,i)=>L.marker([p.lat,p.lon],{icon:L.divIcon({className:'',html:`<div style="background:${p.tipo==='prospect'?'#d97706':'#2563EB'};color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4)">${i+1}</div>`,iconSize:[22,22],iconAnchor:[11,11]})}).addTo(layerRota));
+  seq.forEach((p,i)=>L.marker([p.lat,p.lon],{icon:L.divIcon({className:'',html:`<div style="background:${corDe(p)};color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4)">${i+1}</div>`,iconSize:[22,22],iconAnchor:[11,11]})}).addTo(layerRota));
   $('statRota').innerHTML=`<div class="stat"><b>${total.toFixed(0)} km</b> · ${seq.length} paradas${origem?'':' <span style="color:var(--warn)">(defina a origem p/ melhor rota)</span>'}</div>`;
-  $('listaVisitas').innerHTML=seq.map((p,i)=>`<div class="visita"><span class="num ${p.tipo==='prospect'?'prospect':''}">${i+1}</span><div><div>${esc(p.nome)}</div><div style="color:var(--mut);font-size:.72rem">${esc(p.cidade||'')}/${esc(p.uf||'')}</div></div></div>`).join('');
+  $('listaVisitas').innerHTML=seq.map((p,i)=>`<div class="visita"><span class="num" style="background:${corDe(p)}">${i+1}</span><div><div>${esc(p.nome)}</div><div style="color:var(--mut);font-size:.72rem">${esc(p.cidade||'')}/${esc(p.uf||'')} · ${p.tipo==='prospect'?'prospect':(ROTULO[p.status]||'')}</div></div></div>`).join('');
 }
 
 async function descobrir(){

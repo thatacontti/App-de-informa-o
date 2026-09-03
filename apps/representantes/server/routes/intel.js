@@ -13,7 +13,7 @@ import {
   pesquisaSocial, clientesSemelhantes,
 } from '../lib/intelMotor.js';
 import { colecoesPlano, imagemPlano, planoDisponivel } from '../lib/plano2027.js';
-import { carteiraPontos, geocodarPendentes, geocodar, listarProspects, addProspect, removerProspect, descobrirLojas, googleConfigurado } from '../lib/intelRoteiro.js';
+import { carteiraPontos, geocodarPendentes, geocodar, listarProspects, addProspect, removerProspect, descobrirLojas, googleConfigurado, ultimaColecaoBase } from '../lib/intelRoteiro.js';
 
 export const intel = Router();
 intel.use(requireAuth);
@@ -252,7 +252,16 @@ intel.get('/roteiro/carteira', (req, res) => {
     lat: p.lat, lon: p.lon, tipo: 'prospect',
   }));
   const pendentes = pontos.filter((p) => p.lat == null).length + prospects.filter((p) => p.lat == null).length;
-  res.json({ pontos, prospects, total: pontos.length, geocodados: pontos.filter((p) => p.lat != null).length, pendentes });
+  const status = {
+    ativo: pontos.filter((p) => p.status === 'ativo').length,
+    reativacao: pontos.filter((p) => p.status === 'reativacao').length,
+    sem_historico: pontos.filter((p) => p.status === 'sem_historico').length,
+  };
+  res.json({
+    pontos, prospects, total: pontos.length,
+    geocodados: pontos.filter((p) => p.lat != null).length, pendentes,
+    status, ultima_colecao: ultimaColecaoBase(),
+  });
 });
 
 intel.post('/roteiro/geocodar', async (req, res) => {
@@ -260,9 +269,10 @@ intel.post('/roteiro/geocodar', async (req, res) => {
   if (!esc_.repCod && !esc_.uf) return res.status(400).json({ error: 'informe rep ou uf' });
   try {
     const pontos = carteiraPontos(esc_);
-    const feitos = await geocodarPendentes(pontos, Number(req.body?.limite) || 40);
-    const pendentes = carteiraPontos(esc_).filter((p) => p.lat == null).length;
-    res.json({ feitos, pendentes, geocodados: pontos.filter((p) => p.lat != null).length });
+    const r = await geocodarPendentes(pontos, Math.min(Number(req.body?.limite) || 15, 20));
+    const depois = carteiraPontos(esc_);
+    const pendentes = depois.filter((p) => p.lat == null).length;
+    res.json({ feitos: r.feitos, cidades_restantes: r.alvos_restantes, pendentes, geocodados: depois.filter((p) => p.lat != null).length });
   } catch (e) { res.status(502).json({ error: e.message }); }
 });
 

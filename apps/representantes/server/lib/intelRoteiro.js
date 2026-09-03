@@ -69,10 +69,39 @@ export async function geocodar({ cep, cidade, uf }) {
 }
 
 // CEP do cliente (quando já enriquecido no analítico) — melhora a precisão.
-function cepDoCliente(codcli) {
-  const c = idb.prepare('SELECT raw FROM clientes_ex WHERE codcli=?').get(String(codcli));
+function cepDoCliente(codcli5) {
+  const c = idb.prepare('SELECT raw FROM clientes_ex WHERE codcli=?').get(codcli5);
   if (!c?.raw) return null;
   try { return soDigitos(JSON.parse(c.raw).cep) || null; } catch { return null; }
+}
+
+// Status Ativo/Reativação pela ÚLTIMA COLEÇÃO (a mais recente por data na base).
+// Ativo = comprou na última coleção; Reativação = tem histórico mas não comprou
+// nela; Sem histórico = nunca comprou. Cacheado por 10 min.
+let _statusCache = null;
+function statusInfo() {
+  if (_statusCache && Date.now() - _statusCache.em < 10 * 60 * 1000) return _statusCache;
+  const ult = idb.prepare(
+    "SELECT colecao FROM pedidos WHERE colecao NOT IN ('','00','9','09') GROUP BY colecao ORDER BY MAX(dt_emissao) DESC LIMIT 1",
+  ).get()?.colecao || null;
+  const ativos = new Set(ult
+    ? idb.prepare('SELECT DISTINCT codcli FROM pedidos WHERE colecao=? AND valor_liq>0').all(ult).map((r) => r.codcli)
+    : []);
+  const comHist = new Set(idb.prepare('SELECT DISTINCT codcli FROM pedidos WHERE valor_liq>0').all().map((r) => r.codcli));
+  const nomeUlt = idb.prepare("SELECT descricao FROM catalogos WHERE tipo='colecao' AND codigo=?").get(ult)?.descricao || ult;
+  _statusCache = { em: Date.now(), ult, nomeUlt, ativos, comHist };
+  return _statusCache;
+}
+export function ultimaColecaoBase() { const s = statusInfo(); return { colecao: s.ult, nome: s.nomeUlt }; }
+
+// codcli do transacional (ex.: "2") -> chave do analítico (5 dígitos "00002").
+const pad5 = (c) => String(c || '').padStart(5, '0');
+function statusDoCliente(codcli) {
+  const s = statusInfo();
+  const k = pad5(codcli);
+  if (s.ativos.has(k)) return 'ativo';
+  if (s.comHist.has(k)) return 'reativacao';
+  return 'sem_historico';
 }
 
 // Clientes da carteira (por rep) com coordenadas quando já em cache.
@@ -87,27 +116,38 @@ export function carteiraPontos({ repCod = null, uf = null } = {}) {
     rows = [];
   }
   return rows.map((c) => {
-    const cep = cepDoCliente(c.codcli);
+    const cep = cepDoCliente(pad5(c.codcli));
     const geo = cep && cep.length === 8 ? getCache(`cep:${cep}`)
       : (c.cidade ? getCache(`cid:${norm(c.cidade)}|${norm(c.uf)}`) : null);
     return {
       codcli: c.codcli, nome: c.nome, cidade: c.cidade, uf: c.uf,
-      cep: cep || null, tipo: 'cliente',
+      cep: cep || null, tipo: 'cliente', status: statusDoCliente(c.codcli),
       lat: geo?.ok ? geo.lat : null, lon: geo?.ok ? geo.lon : null,
     };
   });
 }
 
-// Geocodifica em lote os pontos ainda sem coordenada (cap por chamada).
-export async function geocodarPendentes(pontos, limite = 40) {
-  let feitos = 0;
+// Geocodifica em lote — por ALVO ÚNICO (cidade ou CEP), não por cliente. Muitos
+// clientes compartilham cidade, então isto reduz drasticamente as chamadas
+// (ex.: 576 clientes ~ 150 cidades). limite conta só chamadas de rede reais.
+export async function geocodarPendentes(pontos, limite = 60) {
+  const vistos = new Set();
+  const alvos = [];
   for (const p of pontos) {
-    if (p.lat != null || feitos >= limite) continue;
-    const r = await geocodar({ cep: p.cep, cidade: p.cidade, uf: p.uf });
-    if (r) { p.lat = r.lat; p.lon = r.lon; feitos++; }
-    else feitos++; // conta a tentativa (cache negativo evita repetir)
+    if (p.lat != null) continue;
+    const cepD = soDigitos(p.cep);
+    const chave = cepD.length === 8 ? `cep:${cepD}` : (p.cidade ? `cid:${norm(p.cidade)}|${norm(p.uf)}` : null);
+    if (!chave || vistos.has(chave) || getCache(chave)) continue;
+    vistos.add(chave);
+    alvos.push({ cep: cepD.length === 8 ? p.cep : null, cidade: p.cidade, uf: p.uf });
   }
-  return feitos;
+  let feitos = 0;
+  for (const a of alvos) {
+    if (feitos >= limite) break;
+    await geocodar(a); // grava no cache (positivo ou negativo)
+    feitos++;
+  }
+  return { feitos, alvos_restantes: Math.max(alvos.length - feitos, 0) };
 }
 
 // ---- descoberta de lojas (Google Places) --------------------------------
