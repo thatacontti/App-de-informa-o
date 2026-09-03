@@ -60,7 +60,15 @@ input:focus,select:focus{outline:none;border-color:var(--blue)}
     <div id="statRota" style="margin-top:10px"></div>
     <div id="listaVisitas"></div>
 
-    <div class="sec">Adicionar prospect</div>
+    <div class="sec">Prospecção · moda infantil</div>
+    <div class="ctrl">
+      <div class="row"><input id="dCidade" placeholder="Cidade para prospectar" style="flex:1"><input id="dUf" placeholder="UF" style="width:60px"></div>
+      <input id="dTermo" placeholder="loja de moda infantil" value="loja de moda infantil">
+      <button class="btn mini" onclick="descobrir()">🔍 Descobrir lojas</button>
+    </div>
+    <div id="descResultado" class="msg"></div>
+
+    <div class="sec">Adicionar prospect (manual)</div>
     <div class="ctrl">
       <input id="pNome" placeholder="Nome da loja / prospect">
       <div class="row"><input id="pCidade" placeholder="Cidade" style="flex:1"><input id="pUf" placeholder="UF" style="width:60px"></div>
@@ -174,6 +182,37 @@ function otimizar(){
   $('listaVisitas').innerHTML=seq.map((p,i)=>`<div class="visita"><span class="num ${p.tipo==='prospect'?'prospect':''}">${i+1}</span><div><div>${esc(p.nome)}</div><div style="color:var(--mut);font-size:.72rem">${esc(p.cidade||'')}/${esc(p.uf||'')}</div></div></div>`).join('');
 }
 
+async function descobrir(){
+  const cidade=$('dCidade').value.trim(),uf=$('dUf').value.trim(),termo=$('dTermo').value.trim()||'loja de moda infantil';
+  if(!cidade){alert('Informe a cidade');return;}
+  $('descResultado').innerHTML='<span class="spin"></span> Buscando…';
+  try{
+    const r=await api('/api/intel/roteiro/descobrir',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({cidade,uf,termo,raio:15})});
+    if(r.erro){
+      $('descResultado').innerHTML=`<div style="color:var(--warn);margin-bottom:6px">${esc(r.erro)}</div>`+
+        (r.buscas_manuais?`<div class="row">${r.buscas_manuais.map(b=>`<a href="${esc(b.url)}" target="_blank" rel="noopener" class="btn ghost mini" style="text-decoration:none">${esc(b.label)}</a>`).join('')}</div><div style="font-size:.7rem;color:var(--mut);margin-top:6px">Sem a chave do Google, use as buscas acima e adicione manualmente abaixo.</div>`:'');
+      return;
+    }
+    if(!r.lojas.length){$('descResultado').innerHTML='Nenhuma loja encontrada. Tente outro termo/cidade.';return;}
+    $('descResultado').innerHTML=`<div style="font-size:.72rem;color:var(--mut);margin-bottom:6px">${r.total} lojas encontradas em ${esc(cidade)}:</div>`+
+      r.lojas.map((L,i)=>`<div style="border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:6px">
+        <div style="font-weight:600;font-size:.82rem">${esc(L.nome)}${L.rating?` <span style="color:var(--warn)">★${L.rating}</span> <span style="color:var(--mut);font-size:.66rem">(${L.avaliacoes})</span>`:''}</div>
+        <div style="font-size:.72rem;color:var(--mut)">${esc(L.endereco||'')}</div>
+        <div style="font-size:.72rem;color:var(--mut)">${L.telefone?esc(L.telefone):''}${L.site?` · <a href="${esc(L.site)}" target="_blank" rel="noopener">site</a>`:''}</div>
+        <div class="row" style="margin-top:6px">
+          <button class="btn ok mini" onclick='addDescoberta(${JSON.stringify(L).replace(/'/g,"&#39;")})'>+ Adicionar à rota</button>
+          ${(L.buscas||[]).map(b=>`<a href="${esc(b.url)}" target="_blank" rel="noopener" class="btn ghost mini" style="text-decoration:none">${esc(b.label)}</a>`).join('')}
+        </div></div>`).join('');
+  }catch(e){$('descResultado').innerHTML='<span style="color:var(--bad)">'+esc(e.message)+'</span>';}
+}
+async function addDescoberta(L){
+  try{
+    const p=await api('/api/intel/roteiro/prospects',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
+      nome:L.nome,cidade:L.cidade,uf:L.uf,endereco:L.endereco,lat:L.lat,lon:L.lon,origem:'google',rep:$('fRep')?.value.trim()})});
+    PROSPECTS.push({id:p.id,nome:p.nome,cidade:p.cidade,uf:p.uf,origem:'google',lat:p.lat,lon:p.lon,tipo:'prospect'});
+    desenhar();
+  }catch(e){alert('Falha ao adicionar: '+e.message)}
+}
 async function addProspect(){
   const nome=$('pNome').value.trim();if(!nome){alert('Informe o nome');return;}
   try{

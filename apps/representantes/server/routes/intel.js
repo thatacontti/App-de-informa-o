@@ -13,7 +13,7 @@ import {
   pesquisaSocial, clientesSemelhantes,
 } from '../lib/intelMotor.js';
 import { colecoesPlano, imagemPlano, planoDisponivel } from '../lib/plano2027.js';
-import { carteiraPontos, geocodarPendentes, geocodar, listarProspects, addProspect, removerProspect } from '../lib/intelRoteiro.js';
+import { carteiraPontos, geocodarPendentes, geocodar, listarProspects, addProspect, removerProspect, descobrirLojas, googleConfigurado } from '../lib/intelRoteiro.js';
 
 export const intel = Router();
 intel.use(requireAuth);
@@ -276,6 +276,15 @@ intel.post('/roteiro/origem', async (req, res) => {
   } catch (e) { res.status(502).json({ error: e.message }); }
 });
 
+// Descoberta de lojas (moda infantil) via Google Places.
+intel.post('/roteiro/descobrir', async (req, res) => {
+  const { cidade, uf, termo, raio } = req.body || {};
+  try {
+    const r = await descobrirLojas({ cidade, uf, termo, raio: Number(raio) || 0 });
+    res.json({ google_ativo: googleConfigurado(), ...r });
+  } catch (e) { res.status(502).json({ error: e.message }); }
+});
+
 intel.get('/roteiro/prospects', (req, res) => {
   const esc_ = escopoRoteiro(req);
   res.json(listarProspects(esc_.repCod || null));
@@ -286,6 +295,7 @@ intel.post('/roteiro/prospects', async (req, res) => {
   try {
     const p = await addProspect({
       nome, cidade, uf, cep, endereco, origem: origem || 'manual',
+      lat: req.body?.lat ?? null, lon: req.body?.lon ?? null,
       repCod: req.user.papel === 'representante' ? req.user.cod : (req.body?.rep || null),
       criadoPor: req.user.cod,
     });

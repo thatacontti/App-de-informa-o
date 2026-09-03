@@ -110,13 +110,79 @@ export async function geocodarPendentes(pontos, limite = 40) {
   return feitos;
 }
 
+// ---- descoberta de lojas (Google Places) --------------------------------
+// Fonte real para lojas pequenas de moda infantil (OSM não tem cobertura).
+// Requer GOOGLE_PLACES_KEY; sem a chave, devolve atalhos de busca manual.
+const GKEY = process.env.GOOGLE_PLACES_KEY || '';
+export function googleConfigurado() { return Boolean(GKEY); }
+
+const linkBuscas = (termo, cidade) => {
+  const q = encodeURIComponent(`${termo} ${cidade}`.trim());
+  return [
+    { label: 'Instagram', url: `https://www.google.com/search?q=${encodeURIComponent(`site:instagram.com ${termo} ${cidade}`)}` },
+    { label: 'Google Maps', url: `https://www.google.com/maps/search/${q}` },
+    { label: 'Google', url: `https://www.google.com/search?q=${q}` },
+  ];
+};
+
+export async function descobrirLojas({ cidade, uf, termo = 'loja de moda infantil', raio = 0 }) {
+  if (!cidade) return { erro: 'informe a cidade' };
+  if (!GKEY) {
+    return {
+      erro: 'busca automática desativada (sem chave do Google Places)',
+      dica: 'configure GOOGLE_PLACES_KEY no servidor para descoberta automática',
+      buscas_manuais: linkBuscas(termo, `${cidade} ${uf || ''}`),
+    };
+  }
+  const body = {
+    textQuery: `${termo} em ${cidade}${uf ? ' - ' + uf : ''}`,
+    languageCode: 'pt-BR', regionCode: 'BR', maxResultCount: 20,
+  };
+  if (raio > 0) {
+    const centro = await geocodar({ cidade, uf });
+    if (centro) body.locationBias = { circle: { center: { latitude: centro.lat, longitude: centro.lon }, radius: Math.min(raio * 1000, 50000) } };
+  }
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 20000);
+  try {
+    const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+      method: 'POST', signal: ctrl.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': GKEY,
+        'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.nationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.googleMapsUri,places.addressComponents',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) { const err = await res.text(); return { erro: `Google Places ${res.status}: ${err.slice(0, 160)}` }; }
+    const j = await res.json();
+    const lojas = (j.places || []).map((p) => {
+      const nome = p.displayName?.text || '(sem nome)';
+      const comp = p.addressComponents || [];
+      const cidadeG = comp.find((c) => c.types?.includes('administrative_area_level_2'))?.longText || cidade;
+      const ufG = comp.find((c) => c.types?.includes('administrative_area_level_1'))?.shortText || uf || '';
+      return {
+        nome, endereco: p.formattedAddress || '', cidade: cidadeG, uf: ufG,
+        lat: p.location?.latitude ?? null, lon: p.location?.longitude ?? null,
+        telefone: p.nationalPhoneNumber || null, site: p.websiteUri || null,
+        rating: p.rating || null, avaliacoes: p.userRatingCount || 0,
+        maps: p.googleMapsUri || null, buscas: linkBuscas(nome, cidadeG),
+      };
+    });
+    return { termo, cidade, uf, total: lojas.length, lojas };
+  } catch (e) {
+    return { erro: `falha na busca: ${e.message}` };
+  } finally { clearTimeout(t); }
+}
+
 // ---- prospects ----
 export function listarProspects(repCod) {
   return idb.prepare('SELECT * FROM prospects WHERE rep_cod IS NULL OR rep_cod=? ORDER BY criado_em DESC')
     .all(repCod ? String(repCod) : null);
 }
-export async function addProspect({ nome, cidade, uf, cep, endereco, origem = 'manual', repCod = null, criadoPor = null }) {
-  const geo = await geocodar({ cep, cidade, uf });
+export async function addProspect({ nome, cidade, uf, cep, endereco, origem = 'manual', repCod = null, criadoPor = null, lat = null, lon = null }) {
+  // Se já vier com coordenadas (ex.: descoberta Google), não re-geocodifica.
+  const geo = (lat != null && lon != null) ? { lat, lon } : await geocodar({ cep, cidade, uf });
   const r = idb.prepare(`INSERT INTO prospects (nome, cidade, uf, cep, endereco, origem, rep_cod, lat, lon, criado_por)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
     nome || 'Prospect', cidade || '', uf || '', cep || '', endereco || '', origem,
