@@ -61,11 +61,11 @@ input:focus,select:focus{outline:none;border-color:var(--blue)}
     <div id="statRota" style="margin-top:10px"></div>
     <div id="listaVisitas"></div>
 
-    <div class="sec">Prospecção · moda infantil</div>
+    <div class="sec">🟡 Mapear novas lojas (prospecção)</div>
     <div class="ctrl">
       <div class="row"><input id="dCidade" placeholder="Cidade para prospectar" style="flex:1"><input id="dUf" placeholder="UF" style="width:60px"></div>
       <input id="dTermo" placeholder="loja de moda infantil" value="loja de moda infantil">
-      <button class="btn mini" onclick="descobrir()">🔍 Descobrir lojas</button>
+      <button class="btn mini" onclick="descobrir()" style="background:#eab308">🗺️ Mapear novas lojas</button>
     </div>
     <div id="descResultado" class="msg"></div>
 
@@ -134,8 +134,8 @@ async function geocodar(){
 }
 async function carregarSilencioso(){const qs=escopoQS();const d=await api('/api/intel/roteiro/carteira?'+qs);PONTOS=d.pontos;PROSPECTS=d.prospects;desenhar();renderLegenda();$('statCarteira').innerHTML=`<b>${d.total}</b> clientes · <b>${d.geocodados}</b> no mapa · <b>${d.pendentes}</b> a localizar`;}
 
-const COR_STATUS={ativo:'#059669',reativacao:'#ea580c',sem_historico:'#94a3b8',prospect:'#7c3aed'};
-const ROTULO={ativo:'Ativo',reativacao:'Reativação',sem_historico:'Sem histórico',prospect:'Prospect'};
+const COR_STATUS={ativo:'#059669',reativacao:'#dc2626',sem_historico:'#dc2626',prospect:'#eab308'};
+const ROTULO={ativo:'Ativa',reativacao:'Inativa (reativação)',sem_historico:'Inativa (s/ histórico)',prospect:'Nova loja (prospect)'};
 const FILTRO={ativo:true,reativacao:true,sem_historico:true,prospect:true};
 function corDe(p){return p.tipo==='prospect'?COR_STATUS.prospect:(COR_STATUS[p.status]||'#2563EB');}
 function passaFiltro(p){return p.tipo==='prospect'?FILTRO.prospect:(FILTRO[p.status]!==false);}
