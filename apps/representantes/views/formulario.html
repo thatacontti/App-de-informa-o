@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Análise da Ação | Grupo Catarina</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F6F3EC;
+    --card:#FFFFFF;
+    --ink:#20261F;
+    --ink-soft:#5C645A;
+    --line:#E3DDCE;
+    --mata:#2E5E4E;        /* cor de destaque única */
+    --mata-soft:#EAF0ED;
+    --sol:#E0A33B;         /* usado somente no selo da prescrição */
+    --kiki:#F2B33D;
+    --ma:#C64F72;
+    --valent:#7A5C3E;
+    --danger:#B4432F;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Sora',system-ui,-apple-system,sans-serif;
+    font-size:15px;line-height:1.55;
+    padding:0 0 80px;
+  }
+  .wrap{max-width:900px;margin:0 auto;padding:0 20px}
+
+  /* ---------- cabeçalho ---------- */
+  header{padding:44px 0 28px;border-bottom:1px solid var(--line);margin-bottom:36px}
+  .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--mata)}
+  header h1{font-size:clamp(26px,4vw,38px);font-weight:800;letter-spacing:-.02em;margin:10px 0 8px}
+  header p{color:var(--ink-soft);max-width:620px}
+  .brandline{display:flex;gap:8px;margin-top:16px}
+  .chip{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.08em;padding:4px 10px;border-radius:999px;color:#fff}
+  .chip.k{background:var(--kiki);color:#3d2c00}
+  .chip.m{background:var(--ma)}
+  .chip.v{background:var(--valent)}
+
+  /* ---------- seções ---------- */
+  .step{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:28px 28px 30px;margin-bottom:22px}
+  .step-head{display:flex;align-items:baseline;gap:14px;margin-bottom:6px}
+  .step-num{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--mata);letter-spacing:.14em}
+  .step h2{font-size:19px;font-weight:700;letter-spacing:-.01em}
+  .step .hint{color:var(--ink-soft);font-size:13.5px;margin-bottom:20px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+  label.f{display:block;font-size:12.5px;font-weight:600;margin-bottom:6px;color:var(--ink)}
+  input[type=text],textarea,select{
+    width:100%;border:1px solid var(--line);border-radius:9px;background:#FCFBF7;
+    padding:11px 13px;font:inherit;font-size:14px;color:var(--ink);
+  }
+  input:focus,textarea:focus,select:focus{outline:2px solid var(--mata);outline-offset:1px;border-color:var(--mata)}
+  textarea{min-height:96px;resize:vertical}
+  .field{margin-bottom:4px}
+  .req{color:var(--danger)}
+
+  /* painel ERP */
+  .erp{display:none;margin-top:18px;border:1.5px dashed var(--mata);border-radius:12px;background:var(--mata-soft);padding:16px 18px}
+  .erp .erp-title{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.14em;color:var(--mata);text-transform:uppercase;margin-bottom:10px}
+  .erp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+  .erp-grid .lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase}
+  .erp-grid .val{font-weight:800;font-size:17px;margin-top:2px}
+  .erp .nota{font-size:11.5px;color:var(--ink-soft);margin-top:12px}
+  .badge{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:11px;padding:2px 9px;border-radius:5px;border:1px solid var(--ink);background:#fff;margin-left:6px}
+  .badge.up{border-color:var(--mata);color:var(--mata)}
+  .badge.down{border-color:var(--danger);color:var(--danger)}
+  table.hist{width:100%;border-collapse:collapse;margin-top:8px;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;font-size:12.5px}
+  table.hist th,table.hist td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line)}
+  table.hist th:first-child,table.hist td:first-child{text-align:left}
+  table.hist thead th{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);background:#FCFBF7}
+  table.hist tbody th{font-weight:600;font-size:12.5px;color:var(--ink)}
+  table.hist td.tt{font-weight:700}
+  table.hist tr.tfoot th,table.hist tr.tfoot td{border-top:1.5px solid var(--ink);border-bottom:none;background:var(--mata-soft);font-weight:700}
+
+  /* seletores de pílula */
+  .pills{display:flex;flex-wrap:wrap;gap:8px}
+  .pill{border:1px solid var(--line);background:#FCFBF7;border-radius:999px;padding:8px 16px;font-size:13px;cursor:pointer;user-select:none;transition:.15s}
+  .pill:hover{border-color:var(--mata)}
+  .pill.on{background:var(--mata);border-color:var(--mata);color:#fff;font-weight:600}
+
+  /* upload de fotos */
+  .drop{border:1.5px dashed var(--line);border-radius:12px;background:#FCFBF7;padding:26px;text-align:center;cursor:pointer;transition:.15s}
+  .drop:hover{border-color:var(--mata);background:var(--mata-soft)}
+  .drop .big{font-weight:700;font-size:14.5px}
+  .drop .small{font-size:12px;color:var(--ink-soft);margin-top:4px}
+  #thumbs{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  #thumbs .th{position:relative;width:92px;height:92px;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+  #thumbs img{width:100%;height:100%;object-fit:cover}
+  #thumbs .rm{position:absolute;top:4px;right:4px;background:var(--ink);color:#fff;border:none;border-radius:6px;width:20px;height:20px;font-size:12px;cursor:pointer;line-height:1}
+
+  /* ---------- análise C1..C10 ---------- */
+  .dor{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;padding:13px 0;border-bottom:1px dashed var(--line)}
+  .dor:last-child{border-bottom:none}
+  .dor .txt{font-size:14px}
+  .dor .tag{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-soft);display:block;margin-top:2px;letter-spacing:.06em}
+  .scale{display:flex;gap:5px}
+  .scale button{width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:#FCFBF7;font:600 13px 'Sora';cursor:pointer;color:var(--ink-soft);transition:.12s}
+  .scale button:hover{border-color:var(--mata)}
+  .scale button.on{background:var(--mata);border-color:var(--mata);color:#fff}
+  .scale button.on.hi{background:var(--danger);border-color:var(--danger)}
+  .legend{display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-soft);margin:4px 2px 14px;letter-spacing:.06em}
+
+  /* ---------- CTA ---------- */
+  .cta{display:flex;gap:14px;align-items:center;margin:30px 0 8px;flex-wrap:wrap}
+  .btn{background:var(--mata);color:#fff;border:none;border-radius:10px;padding:15px 30px;font:700 15px 'Sora';cursor:pointer;letter-spacing:.01em}
+  .btn:hover{filter:brightness(1.08)}
+  .btn.ghost{background:transparent;color:var(--mata);border:1.5px solid var(--mata)}
+  .btn.mini{padding:11px 18px;font-size:13px}
+  .warn{color:var(--danger);font-size:13px;display:none}
+
+  /* ---------- prescrição / kit ---------- */
+  #result{display:none;margin-top:44px}
+  .rx{background:var(--card);border:1.5px solid var(--ink);border-radius:16px;overflow:hidden;box-shadow:6px 6px 0 var(--line)}
+  .rx-head{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:20px 26px;border-bottom:1.5px solid var(--ink);background:var(--mata-soft);flex-wrap:wrap}
+  .rx-head h3{font-size:20px;font-weight:800;letter-spacing:-.01em}
+  .selo{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.16em;border:1.5px solid var(--ink);padding:7px 13px;border-radius:4px;background:var(--sol);color:var(--ink);font-weight:500;transform:rotate(-1.5deg)}
+  .rx-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0;border-bottom:1px solid var(--line)}
+  .rx-meta div{padding:14px 18px;border-right:1px dashed var(--line)}
+  .rx-meta div:last-child{border-right:none}
+  .rx-meta .lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--ink-soft);text-transform:uppercase}
+  .rx-meta .val{font-weight:700;font-size:15px;margin-top:3px}
+  .rx-body{padding:24px 26px}
+  .dores-list{font-size:13.5px;color:var(--ink-soft);margin-bottom:20px}
+  .dores-list b{color:var(--danger)}
+
+  .acao{border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin-bottom:16px;background:#FDFCF8}
+  .acao-top{display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap}
+  .acao h4{font-size:16.5px;font-weight:700}
+  .acao .rank{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--mata);letter-spacing:.1em}
+  .acao .inv{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;white-space:nowrap}
+  .acao .mec{font-size:13.5px;margin:8px 0 10px}
+  .rw{background:var(--mata-soft);border-left:3px solid var(--mata);padding:10px 14px;border-radius:0 8px 8px 0;font-size:13px;margin-bottom:12px}
+  .rw b{color:var(--mata)}
+  .kitmat{font-size:13px}
+  .kitmat span{display:inline-block;background:#fff;border:1px solid var(--line);border-radius:6px;padding:4px 10px;margin:3px 4px 3px 0}
+  .acao .foot{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);margin-top:12px;letter-spacing:.03em}
+  .prog{font-size:11.5px;color:var(--ink);background:var(--sol);border-radius:4px;padding:2px 8px;font-weight:600}
+
+  .totais{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin:22px 0}
+  .tot{border:1px solid var(--line);border-radius:10px;padding:14px 16px;text-align:center;background:#fff}
+  .tot .lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--ink-soft);text-transform:uppercase}
+  .tot .val{font-size:19px;font-weight:800;margin-top:4px}
+
+  .fluxo{border-top:1.5px dashed var(--ink);padding:18px 26px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-soft);line-height:2}
+  .fluxo b{color:var(--ink)}
+  .alerta{background:#FBEDE9;border:1px solid var(--danger);color:var(--danger);border-radius:10px;padding:14px 18px;font-size:13.5px;margin-bottom:18px;display:none}
+
+  .barcode{font-family:'IBM Plex Mono',monospace;letter-spacing:-1px;font-size:22px;color:var(--ink);opacity:.85;padding:0 26px 18px;user-select:none}
+
+  /* ---------- tela de protocolo (pós-envio) ---------- */
+  .rx-actions{display:flex;gap:12px;padding:0 26px 24px;flex-wrap:wrap}
+  #protocolo{display:none;margin-top:44px}
+  .proto{background:var(--card);border:1.5px solid var(--ink);border-radius:16px;overflow:hidden;box-shadow:6px 6px 0 var(--line)}
+  .proto-head{padding:22px 26px;border-bottom:1.5px solid var(--ink);background:var(--ink);color:#fff;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+  .proto-head h3{font-size:19px;font-weight:800}
+  .proto-num{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;background:var(--sol);color:var(--ink);padding:6px 12px;border-radius:4px}
+  .proto-body{padding:26px}
+  .timeline{list-style:none;margin:6px 0 26px}
+  .timeline li{display:grid;grid-template-columns:26px 1fr auto;gap:14px;align-items:start;padding:12px 0;border-bottom:1px dashed var(--line)}
+  .timeline li:last-child{border-bottom:none}
+  .dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);background:#fff;margin-top:2px}
+  .dot.done{background:var(--mata);border-color:var(--mata)}
+  .dot.now{background:var(--sol);border-color:var(--sol);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(224,163,59,.5)}50%{box-shadow:0 0 0 7px rgba(224,163,59,0)}}
+  .timeline .t-tit{font-weight:700;font-size:14px}
+  .timeline .t-sub{font-size:12.5px;color:var(--ink-soft)}
+  .timeline .t-sla{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);white-space:nowrap}
+  .timeline .st{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;padding:2px 8px;border-radius:4px;margin-left:8px}
+  .st.ok{background:var(--mata-soft);color:var(--mata)}
+  .st.wait{background:#FBF3E2;color:#8A6516}
+  .resumo-box{margin-top:8px}
+  .resumo-box .f{margin-bottom:8px}
+  .resumo-box textarea{min-height:230px;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.7;background:#FCFBF7}
+  .copied{color:var(--mata);font-size:13px;font-weight:600;display:none}
+  .prox{background:var(--mata-soft);border-radius:12px;padding:18px 20px;font-size:13.5px;margin-top:22px}
+  .prox b{color:var(--mata)}
+
+  footer{margin-top:44px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-soft);letter-spacing:.14em;text-transform:uppercase}
+
+  @media print{
+    body{background:#fff}
+    header,.step,.cta,footer{display:none}
+    #result{display:block;margin:0}
+    .rx{box-shadow:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Toolkit Sell-Out · Formulário do Representante</div>
+    <h1>Análise da ação e kit de ativação</h1>
+    <p>Informe o código da loja, descreva o motivo e analise a situação do cliente. O motor cruza a análise com o histórico dos últimos 2 anos e devolve a prescrição do kit, pronta para o fluxo de aprovação comercial e marketing.</p>
+    <div class="brandline">
+      <span class="chip k">KIKI</span><span class="chip m">MENINA ANJO</span><span class="chip v">VALENT</span>
+    </div>
+  </header>
+
+  <!-- PASSO 1 -->
+  <section class="step">
+    <div class="step-head"><span class="step-num">PASSO 01</span><h2>Identificação do cliente</h2></div>
+    <p class="hint">O código da loja puxa automaticamente o histórico do ERP dos últimos 2 anos: faturamento, curva e tendência. Você não preenche curva, o dado preenche.</p>
+    <div class="grid">
+      <div class="field"><label class="f">Código da loja (CODCLI) <span class="req">*</span></label>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="codcli" placeholder="ex: 4512">
+          <button type="button" class="btn mini" onclick="buscarERP()">Buscar</button>
+        </div>
+      </div>
+      <div class="field"><label class="f">Nome fantasia</label><input type="text" id="fantasia" placeholder="ex: Loja Pequenos Passos"></div>
+      <div class="field"><label class="f">Representante <span class="req">*</span></label><input type="text" id="rep" placeholder="seu nome"></div>
+    </div>
+
+    <div class="erp" id="erp">
+      <div class="erp-title">Histórico ERP · últimos 2 anos (alimentado pelo código do cliente)</div>
+      <div class="erp-grid">
+        <div><div class="lbl">Faturamento 24m</div><div class="val" id="e-fat"></div></div>
+        <div><div class="lbl">Últimas coleções</div><div class="val" id="e-col"></div></div>
+        <div><div class="lbl">Curva do cliente</div><div class="val" id="e-curva"></div></div>
+        <div><div class="lbl">Tendência</div><div class="val" id="e-tend"></div></div>
+        <div><div class="lbl">Praça</div><div class="val" id="e-cid"></div></div>
+      </div>
+      <div class="lbl" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--ink-soft);text-transform:uppercase;margin-top:16px">Histórico aberto por coleção e marca</div>
+      <div id="e-hist"></div>
+      <div class="nota">Base carregada do cadastro de clientes (faturamento por coleção e marca, últimos 2 anos). Curva por tercil da carteira; tendência compara I26 + T26 + V27 vs I25 + T25 + V26.</div>
+    </div>
+  </section>
+
+  <!-- PASSO 2 -->
+  <section class="step">
+    <div class="step-head"><span class="step-num">PASSO 02</span><h2>Tipologia e registro do PDV</h2></div>
+    <p class="hint">Classifique o ponto de venda e suba fotos do PDV e/ou do espaço onde nossas marcas estão hoje. A foto é a evidência de partida: o antes que valida o depois.</p>
+    <div class="field"><label class="f">Tipologia do PDV</label>
+      <div class="pills" id="tipologia">
+        <span class="pill on" data-v="P1">P1 Rua infantil</span>
+        <span class="pill" data-v="P2">P2 Rua família</span>
+        <span class="pill" data-v="P3">P3 Shopping</span>
+        <span class="pill" data-v="P4">P4 Magazine</span>
+      </div>
+    </div>
+    <div style="height:18px"></div>
+    <div class="field">
+      <label class="f">Fotos do PDV e/ou espaço <span class="req">*</span> <span style="font-weight:400;color:var(--ink-soft)">(mínimo 2: fachada + exposição das nossas marcas)</span></label>
+      <div class="drop" onclick="document.getElementById('fotos').click()">
+        <div class="big">Toque para adicionar fotos</div>
+        <div class="small">Fachada, vitrine, arara das marcas, espaço disponível para mobiliário</div>
+      </div>
+      <input type="file" id="fotos" accept="image/*" multiple style="display:none" onchange="addFotos(this.files)">
+      <div id="thumbs"></div>
+    </div>
+  </section>
+
+  <!-- PASSO 3 -->
+  <section class="step">
+    <div class="step-head"><span class="step-num">PASSO 03</span><h2>Motivo da ação</h2></div>
+    <p class="hint">Na sua leitura, por que este cliente precisa de uma ação agora? Seja específico: é o argumento que o comercial vai ler primeiro.</p>
+    <textarea id="motivo" placeholder="ex: A loja comprou bem a coleção mas o giro está lento; as vendedoras empurram a marca concorrente que dá premiação, e a vitrine está com a coleção passada há 40 dias."></textarea>
+  </section>
+
+  <!-- PASSO 4 -->
+  <section class="step">
+    <div class="step-head"><span class="step-num">PASSO 04</span><h2>Análise da ação</h2></div>
+    <p class="hint">Avalie cada situação nesta loja. Notas 4 e 5 entram como dores prioritárias e disparam as ações do cardápio.</p>
+    <div class="legend"><span>1 · NÃO É PROBLEMA</span><span>5 · PROBLEMA CRÍTICO</span></div>
+    <div id="dores"></div>
+  </section>
+
+  <!-- PASSO 5 -->
+  <section class="step">
+    <div class="step-head"><span class="step-num">PASSO 05</span><h2>Contexto e contrapartida</h2></div>
+    <div class="grid">
+      <div class="field"><label class="f">Disposição do lojista em dar contrapartida</label>
+        <div class="pills" id="contra">
+          <span class="pill" data-v="alta">Alta</span>
+          <span class="pill on" data-v="media">Média</span>
+          <span class="pill" data-v="baixa">Baixa</span>
+        </div>
+      </div>
+      <div class="field"><label class="f">Janela local relevante (90 dias)</label><input type="text" id="janela" placeholder="ex: aniversário da cidade em setembro"></div>
+    </div>
+  </section>
+
+  <div class="cta">
+    <button class="btn" onclick="gerar()">Gerar formulário</button>
+    <span class="warn" id="warn"></span>
+  </div>
+
+  <!-- RESULTADO -->
+  <div id="result">
+    <div class="alerta" id="alerta"></div>
+    <div class="rx">
+      <div class="rx-head">
+        <h3 id="rx-title">Kit de ativação</h3>
+        <span class="selo">PRESCRIÇÃO Nº <span id="rx-num"></span></span>
+      </div>
+      <div class="rx-meta">
+        <div><div class="lbl">Cliente</div><div class="val" id="m-cli"></div></div>
+        <div><div class="lbl">Perfil</div><div class="val" id="m-perfil"></div></div>
+        <div><div class="lbl">Faturamento 24m</div><div class="val" id="m-fat"></div></div>
+        <div><div class="lbl">Representante</div><div class="val" id="m-rep"></div></div>
+        <div><div class="lbl">Data</div><div class="val" id="m-data"></div></div>
+      </div>
+      <div class="rx-body">
+        <div class="dores-list" id="rx-dores"></div>
+        <div class="dores-list" id="rx-motivo"></div>
+        <div class="dores-list" id="rx-fotos"></div>
+        <div id="acoes"></div>
+        <div class="totais">
+          <div class="tot"><div class="lbl">Investimento total</div><div class="val" id="t-inv"></div></div>
+          <div class="tot"><div class="lbl">Meta sugerida 60d</div><div class="val" id="t-meta"></div></div>
+          <div class="tot"><div class="lbl">Ações no kit</div><div class="val" id="t-n"></div></div>
+        </div>
+      </div>
+      <div class="fluxo" id="fluxo"></div>
+      <div class="barcode" id="barcode"></div>
+      <div class="rx-actions">
+        <button class="btn" onclick="enviar()">Enviar para aprovação comercial</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TELA DE PROTOCOLO (após envio) -->
+  <div id="protocolo">
+    <div class="proto">
+      <div class="proto-head">
+        <h3>Solicitação enviada</h3>
+        <span class="proto-num">PROTOCOLO <span id="p-num"></span></span>
+      </div>
+      <div class="proto-body">
+        <p style="font-size:14px;color:var(--ink-soft);margin-bottom:18px" id="p-intro"></p>
+        <ul class="timeline" id="p-timeline"></ul>
+
+        <div class="resumo-box">
+          <label class="f">Resumo para o gestor comercial (pronto para colar no e-mail ou WhatsApp)</label>
+          <textarea id="p-resumo" readonly></textarea>
+          <div class="cta" style="margin-top:12px">
+            <button class="btn mini" onclick="copiarResumo()">Copiar resumo</button>
+            <span class="copied" id="p-copied">Copiado.</span>
+          </div>
+        </div>
+
+        <div class="prox" id="p-prox"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>Grupo Catarina · Produto &amp; Marketing · Toolkit Sell-Out v1.2</footer>
+</div>
+
+<script>
+/* ===== BANCO DE DADOS: cadastro de clientes (faturamento por coleção e marca, últimos 2 anos, valores em R$) ===== */
+let DB={};
+</script>
+<script>
+/* ---------- dados: dores C1..C10 ---------- */
+const DORES=[
+ {id:"C1",t:"As vendedoras não conhecem ou não indicam nossas marcas",a:[1]},
+ {id:"C2",t:"A coleção chega e não acontece nada, sem evento de novidade",a:[2]},
+ {id:"C3",t:"A loja não gera demanda digital, Instagram fraco ou sem material",a:[3]},
+ {id:"C4",t:"Consumidoras da cidade não conhecem ou não pedem a marca",a:[4,7]},
+ {id:"C5",t:"O produto fica escondido, vitrine e exposição fracas",a:[5]},
+ {id:"C6",t:"O lojista quer destacar a marca mas não tem estrutura ou mobiliário",a:[6]},
+ {id:"C7",t:"A marca não aparece na cidade, concorrente domina a praça",a:[7]},
+ {id:"C8",t:"O giro está lento e o lojista pede promoção ou desconto",a:[8]},
+ {id:"C9",t:"Estoque parado de coleções anteriores trava a recompra",a:[8],flag:"queima"},
+ {id:"C10",t:"O lojista compra pouco mix, só básicos, não leva coordenados",a:[5,1],flag:"coord"}
+];
+
+/* ---------- dados: cardápio de ações ---------- */
+const ACOES={
+ 1:{n:"Incentivo de Vendedoras",inv:[800,2500],
+    mec:"Ciclo de 45 dias com meta individual por vendedora, treinamento relâmpago semanal via WhatsApp e premiação escalonada (vale-compras e prêmio experiência para o top 3 da regional).",
+    rw:"No multimarca, quem decide o que sai da arara é a vendedora. Engajada por incentivo, ela vira força de vendas terceirizada com o menor custo por peça incremental do cardápio.",
+    kit:["Regulamento 1 página","Cartela de metas","Vídeos de treinamento","Arte convite WhatsApp","Planilha de apuração"],
+    kpi:"Peças por vendedora por ciclo vs baseline",contra:"Liberar as vendedoras e garantir frente de arara"},
+ 2:{n:"Ativação de Lançamento",inv:[1500,5000],
+    mec:"Dia de Lançamento na loja em até 10 dias da chegada da coleção: vitrine temática, mini evento com experiência para a criança, convite via base de WhatsApp e brinde exclusivo acima de valor X (nunca desconto).",
+    rw:"Novidade é o principal driver de tráfego na moda. O evento cria urgência e transforma a chegada do produto em mídia gratuita e experiência de marca.",
+    kit:["Vitrine temática","Convite digital editável","Roteiro do evento","Brindes por faixa de pedido","Playlist da marca"],
+    kpi:"Sell-out 30 dias pós-lançamento vs coleção anterior",contra:"Custear a experiência local e disparar convites; meta de 20% do pedido em 30 dias"},
+ 3:{n:"Redes Sociais Cooperadas",inv:[0,3000],
+    mec:"Pack mensal Reels-first por coleção e por marca (mínimo 60% em vídeo), calendário editorial, roteiros de Reels para a loja gravar e, no nível avançado, mídia local cooperada 50/50.",
+    rw:"A compradora (mulher 25 a 44) decide onde comprar pelo Instagram local. A marca tem o conteúdo, o lojista tem a audiência: o co-marketing junta os dois a custo marginal quase zero.",
+    kit:["Pack de 12 artes/mês","Banco de vídeos de produto","Roteiros de Reels","Guia de tom de voz por marca","Tutorial de impulsionamento"],
+    kpi:"8+ posts/mês com material do grupo e alcance local",contra:"Marcar o perfil da marca e seguir o guia de uso"},
+ 4:{n:"Influenciador Local",inv:[1500,4000],prog:"AÇÃO PROGRAMADA A",
+    mec:"O lojista indica a influenciadora da cidade; validado o perfil (engajamento real acima de 3%, fit de marca), ela recebe caixa com até R$2.000 em produtos + briefing visual e entrega 1 Reel + 3 stories marcando a loja.",
+    rw:"Mãe confia em mãe. A indicação partir do lojista garante relevância local real e co-responsabilidade na ativação; o conteúdo regionalizado encurta o caminho entre desejo e prateleira.",
+    kit:["Caixa de produtos até R$2.000","Briefing visual","Roteiro de conteúdo","Guia de impulsionamento","Contrato modelo"],
+    kpi:"Vendas declaradas 'vi com a influenciadora' na janela",contra:"Repostar o conteúdo e destacar os produtos da caixa na loja"},
+ 5:{n:"Trade PDV: Vitrine e Sinalização",inv:[300,1200],
+    mec:"Kit vitrine da coleção + sinalização interna: stopper de arara, tag de coordenado 'monte o look' e régua de tamanhos. Programa Vitrine Premiada garante execução com foto auditada.",
+    rw:"A maior parte da decisão acontece dentro do PDV, e produto sem sinalização é produto invisível. A tag de coordenado sugere o look completo e eleva o ticket sem depender de ninguém.",
+    kit:["Fundo de vitrine + adesivos","Stoppers de arara","Tags de coordenado","Régua de tamanhos E/M/P","Guia de montagem 1 página"],
+    kpi:"Sell-out das peças sinalizadas e ticket médio",contra:"Montar conforme o guia e enviar foto em 5 dias"},
+ 6:{n:"Espaço Permanente Mobiliário/Gôndola",inv:[150,8000],prog:"AÇÃO PROGRAMADA C",
+    mec:"Mobiliário exclusivo (versão fixa ou móvel) em comodato de até 24 meses, com planograma, atualização visual por coleção e auditoria fotográfica semestral.",
+    rw:"Espaço fixo é share de loja garantido: eleva percepção de valor, organiza o sortimento com o mix completo visível e cria barreira física contra concorrentes.",
+    kit:["Mobiliário fixo ou móvel","Planograma de montagem","Kit visual sazonal acoplável","Termo de comodato"],
+    kpi:"Recompra 90 dias pré vs pós instalação",contra:"Mix completo da marca no espaço, exclusividade e volume mínimo anual"},
+ 7:{n:"OOH de Proximidade",inv:[2000,12000],
+    mec:"Outdoor de entrada de cidade, busdoor e painel próximo a escola, sempre cooperado (60/40) e geolocalizado: a peça assina 'encontre na loja parceira' em janela casada com a coleção.",
+    rw:"No interior, marca que aparece na rua é marca grande. O OOH legitima a marca perante a consumidora e o próprio lojista, que passa a comprar mais fundo no mix.",
+    kit:["Arte adaptada por praça","Compra de mídia homologada","Plano de janela casada com coleção"],
+    kpi:"Sell-out da loja parceira na janela da campanha",contra:"40% do investimento de mídia e exposição interna reforçada"},
+ 8:{n:"Campanha Promocional (Compre e Concorra / Compre e Ganhe)",inv:[3000,30000],
+    mec:"Janela de 30 a 45 dias casada com pico sazonal. Formatos: Guarda-Roupa KIKI (quem mais compra ganha R$2.000 em produtos, exige registro SPA) ou Compre e Ganhe Livro de Colorir (a cada 2 peças, 1 livro, sem registro).",
+    rw:"Premiação acelera a decisão e eleva o ticket mantendo preço cheio, além de capturar cadastro da consumidora final, o ativo de dados mais raro de uma marca B2B2C.",
+    kit:["Regulamento e registro (se sorteio/concurso)","Cartaz e display de balcão","Urna ou QR de cadastro","Artes digitais","Roteiro para vendedoras"],
+    kpi:"Incremento de sell-out na janela vs período anterior",contra:"Registro das compras no caixa e divulgação para a base"}
+};
+
+/* variantes programadas da ação 8 */
+const A8_VARIANTES={
+ guarda:{n:"Guarda-Roupa KIKI · Compre e Concorra",prog:"AÇÃO PROGRAMADA D",inv:[8000,30000],
+   mec:"A consumidora que mais comprar KIKI na janela ganha R$2.000 em produtos. Cadastro no caixa, ranking semanal nos stories da loja e kit completo de comunicação. Registro SPA obrigatório antes de divulgar.",
+   rw:"O prêmio agregador e aspiracional concentra recompra na janela: cada visita vira chance de subir no ranking, e o cadastro constrói a base de consumidoras finais."},
+ livro:{n:"Compre e Ganhe Livro de Colorir",prog:"AÇÃO PROGRAMADA B",inv:[3000,8000],
+   mec:"A cada 2 produtos do Grupo Catarina, o consumidor ganha 1 livro de colorir exclusivo. Kit com livros, cartazes e display de balcão; a vendedora usa como argumento de fechamento.",
+   rw:"Brinde certo dispensa registro legal e roda em qualquer loja. A mecânica 'leve 2' empurra a segunda peça e o livro estende a marca para dentro de casa, onde a criança pede de novo."}
+};
+
+/* ---------- ERP real: banco carregado do cadastro de clientes ---------- */
+let ERP=null; /* estado do cliente carregado */
+const COLS=[["I25","Inverno 2025"],["T25","Tropical 2025"],["V26","Ver\u00e3o 2026"],["I26","Inverno 2026"],["T26","Tropical 2026"],["V27","Ver\u00e3o 2027"]];
+const MARCAS=[["KIKI","KIKI"],["MA","MENINA ANJO"],["VAL","VALENT"]];
+const TEND_LBL={up:"Crescendo",flat:"Est\u00e1vel",down:"Caindo"};
+
+async function buscarERP(){
+  const cod=document.getElementById('codcli').value.trim();
+  if(!cod){showWarn('Informe o c\u00f3digo da loja para buscar o hist\u00f3rico.');return}
+  let d=DB[cod];
+  if(!d){
+    try{
+      const __r=await fetch('/api/cliente/'+encodeURIComponent(cod));
+      if(__r.status===403){showWarn('Cliente fora da sua carteira. Confirme o CODCLI com o comercial.');document.getElementById('erp').style.display='none';ERP=null;return}
+      if(!__r.ok){showWarn('Codigo '+cod+' nao encontrado no cadastro (sem faturamento nos ultimos 2 anos). Confirme o CODCLI com o comercial.');document.getElementById('erp').style.display='none';ERP=null;return}
+      d=await __r.json();DB[cod]=d;
+    }catch(e){showWarn('Erro de conexao ao buscar o cliente.');return}
+  }
+  hideWarn();
+  const colsAtivas=COLS.filter(([k])=>MARCAS.some(([b])=>d.h[b]&&d.h[b][k]));
+  const ult=colsAtivas.slice(-3).map(([k])=>k).reverse().join(' \u00b7 ')||'sem cole\u00e7\u00f5es recentes';
+  ERP={cod:cod,fat:d.f,curva:d.cv,tend:d.t,col:ult,nome:d.n,cidade:d.c,uf:d.u,hist:d.h};
+  const fant=document.getElementById('fantasia');
+  if(!fant.value)fant.value=d.n;
+  document.getElementById('e-fat').textContent=fmt(d.f);
+  document.getElementById('e-col').textContent=ult;
+  document.getElementById('e-curva').innerHTML='Curva '+d.cv;
+  document.getElementById('e-tend').innerHTML=TEND_LBL[d.t]+
+    (d.t==='up'?' <span class="badge up">+</span>':(d.t==='down'?' <span class="badge down">-</span>':''));
+  document.getElementById('e-cid').textContent=d.c+' / '+d.u;
+
+  /* hist\u00f3rico aberto por cole\u00e7\u00e3o e marca */
+  let tot={},grand=0;
+  let rows=colsAtivas.map(([k,lbl])=>{
+    let cells=MARCAS.map(([b])=>{
+      const v=(d.h[b]&&d.h[b][k])||0;tot[b]=(tot[b]||0)+v;grand+=v;
+      return '<td>'+(v?fmt(v):'\u2013')+'</td>';
+    }).join('');
+    const linha=MARCAS.reduce((s,[b])=>s+((d.h[b]&&d.h[b][k])||0),0);
+    return '<tr><th>'+lbl+'</th>'+cells+'<td class="tt">'+fmt(linha)+'</td></tr>';
+  }).join('');
+  const foot='<tr class="tfoot"><th>Total 24m</th>'+MARCAS.map(([b])=>'<td>'+(tot[b]?fmt(tot[b]):'\u2013')+'</td>').join('')+'<td class="tt">'+fmt(grand)+'</td></tr>';
+  document.getElementById('e-hist').innerHTML=
+    '<table class="hist"><thead><tr><th>Cole\u00e7\u00e3o</th><th>KIKI</th><th>Menina Anjo</th><th>Valent</th><th>Total</th></tr></thead><tbody>'+rows+foot+'</tbody></table>';
+  document.getElementById('erp').style.display='block';
+}
+document.getElementById('codcli').addEventListener('blur',()=>{
+  if(document.getElementById('codcli').value.trim())buscarERP();
+});
+/* pré-preenchimento via plataforma: formulario.html?codcli=XXXX */
+(function(){
+  const cod=new URLSearchParams(location.search).get('codcli');
+  if(cod){document.getElementById('codcli').value=cod;buscarERP();
+    document.getElementById('codcli').scrollIntoView({behavior:'smooth',block:'center'});}
+})();
+
+/* ---------- fotos do PDV ---------- */
+let FOTOS=[];
+function addFotos(files){
+  [...files].forEach(f=>{
+    const r=new FileReader();
+    r.onload=e=>{FOTOS.push({name:f.name,src:e.target.result});renderThumbs()};
+    r.readAsDataURL(f);
+  });
+}
+function renderThumbs(){
+  const t=document.getElementById('thumbs');t.innerHTML='';
+  FOTOS.forEach((f,i)=>{
+    t.innerHTML+=`<div class="th"><img src="${f.src}" alt="${f.name}"><button class="rm" onclick="rmFoto(${i})" title="remover">×</button></div>`;
+  });
+}
+function rmFoto(i){FOTOS.splice(i,1);renderThumbs()}
+
+/* ---------- montar linhas da análise ---------- */
+const dorEl=document.getElementById('dores');
+DORES.forEach(d=>{
+  const row=document.createElement('div');row.className='dor';
+  row.innerHTML=`<div class="txt">${d.t}<span class="tag">${d.id} · dispara Ação ${d.a.map(x=>String(x).padStart(2,'0')).join(' + ')}</span></div>
+  <div class="scale" data-id="${d.id}">${[1,2,3,4,5].map(n=>`<button type="button" data-n="${n}" ${n===1?'class="on"':''}>${n}</button>`).join('')}</div>`;
+  dorEl.appendChild(row);
+});
+document.querySelectorAll('.scale').forEach(sc=>{
+  sc.addEventListener('click',e=>{
+    if(e.target.tagName!=='BUTTON')return;
+    sc.querySelectorAll('button').forEach(b=>b.className='');
+    const n=+e.target.dataset.n;
+    e.target.className='on'+(n>=4?' hi':'');
+  });
+});
+
+/* pílulas de seleção única */
+document.querySelectorAll('.pills').forEach(g=>{
+  g.addEventListener('click',e=>{
+    if(!e.target.classList.contains('pill'))return;
+    g.querySelectorAll('.pill').forEach(p=>p.classList.remove('on'));
+    e.target.classList.add('on');
+  });
+});
+const pick=id=>document.querySelector('#'+id+' .pill.on').dataset.v;
+
+const fmt=v=>'R$ '+v.toLocaleString('pt-BR');
+function showWarn(msg){const w=document.getElementById('warn');w.textContent=msg;w.style.display='inline'}
+function hideWarn(){document.getElementById('warn').style.display='none'}
+
+/* ---------- motor de recomendação ---------- */
+async function gerar(){
+  const codcli=document.getElementById('codcli').value.trim();
+  const rep=document.getElementById('rep').value.trim();
+  const motivo=document.getElementById('motivo').value.trim();
+  if(!codcli||!rep){showWarn('Preencha o código da loja e o representante.');return}
+  if(FOTOS.length<2){showWarn('Suba pelo menos 2 fotos do PDV (fachada + exposição das marcas).');return}
+  if(!motivo){showWarn('Descreva o motivo da ação.');return}
+  hideWarn();
+  if(!ERP||ERP.cod!==codcli)await buscarERP();
+
+  const fantasia=document.getElementById('fantasia').value.trim();
+  const tip=pick('tipologia'),contra=pick('contra');
+  const curva=ERP.curva,tend=ERP.tend;
+  const janela=document.getElementById('janela').value.trim();
+
+  /* notas */
+  const notas={};document.querySelectorAll('.scale').forEach(sc=>{notas[sc.dataset.id]=+sc.querySelector('.on').dataset.n});
+  const prioritarias=DORES.filter(d=>notas[d.id]>=4).sort((a,b)=>notas[b.id]-notas[a.id]);
+
+  /* score por ação */
+  const score={};
+  prioritarias.forEach(d=>d.a.forEach(a=>{score[a]=(score[a]||0)+(notas[d.id]-3)+1}));
+
+  /* filtros de elegibilidade (Seção 6.1 do toolkit) */
+  const alertas=[];
+  const bloqueadas=new Set();
+  if(curva==='C'&&tend==='down'){[2,4,6,7,8].forEach(a=>bloqueadas.add(a));
+    alertas.push('Histórico ERP: cliente curva C em queda. Ações de alto investimento bloqueadas pelo motor; kit limitado a Incentivo, Redes básico e Trade leve. Recomenda-se pauta comercial antes de ampliar verba.');}
+  if(curva==='A'&&tend==='up'){score[6]=(score[6]||0)+2;score[2]=(score[2]||0)+2;}
+  if(contra==='baixa'){if(score[2])score[2]-=2;if(score[7])score[7]-=2;if(score[3])score[3]+=1;if(score[5])score[5]+=1;
+    alertas.push('Disposição de contrapartida baixa: o motor rebaixou ações dependentes do lojista e priorizou ações autoportantes.');}
+  if(tip==='P3'){alertas.push('Loja de shopping: OOH substituído por mall media + digital geolocalizado; toda ação exige anuência da administração (+5 dias úteis no fluxo).');}
+  if(curva==='C')bloqueadas.add(6);
+
+  /* seleção top 3 */
+  let ranked=Object.entries(score).filter(([a,s])=>s>0&&!bloqueadas.has(+a))
+    .sort((x,y)=>y[1]-x[1]).slice(0,3).map(([a])=>+a);
+
+  if(ranked.length===0){
+    ranked=[5,3];
+    alertas.push('Nenhuma dor crítica (nota 4 ou 5) sinalizada: o motor sugere o kit de manutenção (Trade leve + Redes básico). Revise a análise se a leitura de campo indicar problema real.');
+  }
+
+  /* variante da ação 8 */
+  let a8v=null;
+  if(ranked.includes(8)){
+    if(notas.C9>=4||curva==='C'){a8v=A8_VARIANTES.livro}
+    else{a8v=A8_VARIANTES.guarda}
+  }
+
+  /* render */
+  const acEl=document.getElementById('acoes');acEl.innerHTML='';
+  let invMin=0,invMax=0;const kitList=[];
+  ranked.forEach((a,i)=>{
+    let d={...ACOES[a]};
+    if(a===8&&a8v){d={...d,...a8v}}
+    if(a===7&&tip==='P3'){d={...d,n:'Mall Media + Digital Geolocalizado (substitui OOH)',mec:'Mídia do próprio shopping (relógio, portais, ativações do mall) combinada com impulsionamento geolocalizado, casada com o calendário do empreendimento.'}}
+    invMin+=d.inv[0];invMax+=d.inv[1];
+    kitList.push({num:a,nome:d.n,inv:d.inv,contra:d.contra});
+    const extra=[];
+    if(a===5&&notas.C10>=4)extra.push('Reforço automático: tags de coordenado em dose dupla (dor C10, mix raso).');
+    if(a===1&&notas.C10>=4)extra.push('Treinamento com módulo de venda de coordenado incluído.');
+    acEl.innerHTML+=`<div class="acao">
+      <div class="acao-top"><div><span class="rank">${i+1}ª AÇÃO · ${String(a).padStart(2,'0')}</span> ${d.prog?`<span class="prog">${d.prog}</span>`:''}<h4>${d.n}</h4></div>
+      <span class="inv">${fmt(d.inv[0])} a ${fmt(d.inv[1])}</span></div>
+      <p class="mec">${d.mec} ${extra.join(' ')}</p>
+      <div class="rw"><b>Reason why:</b> ${d.rw}</div>
+      <div class="kitmat"><b style="font-size:12px">Kit de materiais:</b><br>${d.kit.map(k=>`<span>${k}</span>`).join('')}</div>
+      <div class="foot">KPI: ${d.kpi} · CONTRAPARTIDA: ${d.contra}</div>
+    </div>`;
+  });
+
+  /* meta sugerida */
+  const base=10+ranked.length*3+(curva==='B'&&tend==='up'?4:0)+(contra==='alta'?3:0);
+
+  /* preencher cabeçalho da prescrição */
+  document.querySelector('#rx-num').textContent=codcli+'-'+new Date().getFullYear().toString().slice(2)+String(Math.floor(Math.random()*900)+100);
+  document.getElementById('m-cli').textContent=codcli+(fantasia?' · '+fantasia:'');
+  document.getElementById('m-perfil').textContent=`${tip} · Curva ${curva} · ${TEND_LBL[tend]}`;
+  document.getElementById('m-fat').textContent=fmt(ERP.fat);
+  document.getElementById('m-rep').textContent=rep;
+  document.getElementById('m-data').textContent=new Date().toLocaleDateString('pt-BR');
+  document.getElementById('rx-dores').innerHTML=prioritarias.length
+    ?`Dores prioritárias: ${prioritarias.map(d=>`<b>${d.id} (${notas[d.id]})</b>`).join(' · ')}`
+    :'Nenhuma dor crítica sinalizada na análise.';
+  document.getElementById('rx-motivo').innerHTML=`Motivo do representante: “${motivo}”${janela?` · Janela local: ${janela}`:''}`;
+  document.getElementById('rx-fotos').innerHTML=`Evidências anexadas: ${FOTOS.length} foto(s) do PDV registradas como baseline (antes).`;
+  document.getElementById('t-inv').textContent=fmt(invMin)+' a '+fmt(invMax);
+  document.getElementById('t-meta').textContent='+'+base+'%';
+  document.getElementById('t-n').textContent=ranked.length+' de 3';
+
+  const alertaEl=document.getElementById('alerta');
+  if(alertas.length){alertaEl.style.display='block';alertaEl.innerHTML=alertas.join('<br>')}else{alertaEl.style.display='none'}
+
+  const sla1=invMax<=1500?'Gestor regional + Trade':(invMax<=5000?'Gerência comercial + Head Produto & Marketing':'Comitê mensal (Comercial + Marketing + Diretoria)');
+  document.getElementById('fluxo').innerHTML=
+   `<b>PRÓXIMOS PASSOS DO FLUXO</b><br>
+    1. Aprovação comercial · SLA 3 dias úteis · Alçada: <b>${sla1}</b><br>
+    2. Aprovação marketing · SLA 3 dias úteis (conformidade legal obrigatória se houver sorteio/concurso)<br>
+    3. Termo de contrapartida assinado pelo lojista · 5 dias úteis · <b>sem termo, o kit não é enviado</b><br>
+    4. Produção e envio do kit · 7 dias úteis · Ativação com evidência fotográfica${tip==='P3'?'<br>5. Anuência da administração do shopping · +5 dias úteis':''}`;
+
+  document.getElementById('barcode').textContent='|| ' + codcli.split('').join(' | ') + ' || GC-SELLOUT ||';
+
+  /* guardar estado para o envio */
+  const rxnum=document.querySelector('#rx-num').textContent;
+  LAST={rxnum,codcli,fantasia,rep,tip,curva,tend,fat:ERP.fat,motivo,janela,contra,notas,
+        dores:prioritarias.map(d=>d.id+' ('+notas[d.id]+')'),
+        kit:kitList,invMin,invMax,meta:base,sla1,fotos:FOTOS.length};
+
+  document.getElementById('protocolo').style.display='none';
+  document.getElementById('result').style.display='block';
+  document.getElementById('result').scrollIntoView({behavior:'smooth'});
+}
+
+/* ---------- envio para aprovação: tela de protocolo ---------- */
+let LAST=null;
+async function enviar(){
+  if(!LAST)return;
+  try{
+    const __r=await fetch('/api/prescricao',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({codcli:LAST.codcli,fantasia:LAST.fantasia,tipologia:LAST.tip,contra:LAST.contra,motivo:LAST.motivo,janela:LAST.janela,notas:LAST.notas,fotos:FOTOS.map(f=>f.src)})});
+    const __d=await __r.json();
+    if(!__r.ok){showWarn(__d.error||'Falha ao registrar a prescricao.');return}
+    LAST.rxnum=__d.protocolo;
+  }catch(e){showWarn('Erro de conexao ao registrar a prescricao.');return}
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  document.getElementById('p-num').textContent=LAST.rxnum;
+  document.getElementById('p-intro').textContent=
+    'A prescrição foi registrada no banco de dados e entrou no fluxo de aprovação. O gestor comercial da sua regional recebe a notificação agora; acompanhe as etapas abaixo. Nenhum kit é produzido antes das duas aprovações e do termo de contrapartida assinado.';
+
+  /* timeline */
+  const etapas=[
+    {t:'Análise da ação e prescrição',s:'Formulário enviado pelo representante com '+LAST.fotos+' foto(s) de baseline',sla:hoje,st:'done'},
+    {t:'Aprovação comercial',s:'Alçada: '+LAST.sla1,sla:'SLA 3 dias úteis',st:'now'},
+    {t:'Aprovação marketing',s:'Verba, aderência de marca e conformidade legal',sla:'SLA 3 dias úteis',st:'wait'}
+  ];
+  if(LAST.tip==='P3')etapas.push({t:'Anuência da administração do shopping',s:'Aprovação de visual e ação pelo empreendimento',sla:'+5 dias úteis',st:'wait'});
+  etapas.push(
+    {t:'Termo de contrapartida do lojista',s:'Assinatura digital; sem termo, o kit não é enviado',sla:'5 dias úteis',st:'wait'},
+    {t:'Produção e envio do kit',s:'Materiais físicos e digitais das ações aprovadas',sla:'7 dias úteis',st:'wait'},
+    {t:'Ativação na loja com evidência',s:'Foto ou vídeo obrigatório no sistema',sla:'data acordada',st:'wait'},
+    {t:'Mensuração 30 / 60 / 90 dias',s:'Recompra vs baseline alimenta o banco e recalibra o motor',sla:'automático',st:'wait'}
+  );
+  document.getElementById('p-timeline').innerHTML=etapas.map(e=>
+    `<li><span class="dot ${e.st==='done'?'done':(e.st==='now'?'now':'')}"></span>
+     <div><div class="t-tit">${e.t}${e.st==='done'?'<span class="st ok">CONCLUÍDO</span>':(e.st==='now'?'<span class="st wait">EM ANDAMENTO</span>':'')}</div>
+     <div class="t-sub">${e.s}</div></div>
+     <span class="t-sla">${e.sla}</span></li>`).join('');
+
+  /* resumo pronto para colar */
+  const TEND_TXT={up:'crescendo',flat:'estável',down:'caindo'};
+  const linhasKit=LAST.kit.map((k,i)=>(i+1)+'. '+k.nome+' ('+fmt(k.inv[0])+' a '+fmt(k.inv[1])+')').join('\n');
+  const contrap=LAST.kit.map(k=>k.contra).join('; ');
+  const resumo=
+'ASSUNTO: Aprovação de kit de ativação, cliente '+LAST.codcli+(LAST.fantasia?' '+LAST.fantasia:'')+'\n\n'+
+'Prescrição '+LAST.rxnum+' registrada em '+hoje+' pelo representante '+LAST.rep+'.\n\n'+
+'CLIENTE: '+LAST.codcli+(LAST.fantasia?' ('+LAST.fantasia+')':'')+', tipologia '+LAST.tip+', curva '+LAST.curva+', tendência '+TEND_TXT[LAST.tend]+', faturamento 24 meses de '+fmt(LAST.fat)+' (histórico ERP).\n\n'+
+'MOTIVO DA AÇÃO: '+LAST.motivo+'\n\n'+
+'DORES PRIORITÁRIAS: '+(LAST.dores.length?LAST.dores.join(', '):'nenhuma crítica; kit de manutenção')+'\n\n'+
+'KIT RECOMENDADO PELO MOTOR:\n'+linhasKit+'\n\n'+
+'INVESTIMENTO TOTAL: '+fmt(LAST.invMin)+' a '+fmt(LAST.invMax)+'\n'+
+'META SUGERIDA 60 DIAS: +'+LAST.meta+'%\n'+
+'CONTRAPARTIDAS DO LOJISTA: '+contrap+'\n'+
+(LAST.janela?'JANELA LOCAL: '+LAST.janela+'\n':'')+
+'EVIDÊNCIAS: '+LAST.fotos+' foto(s) do PDV anexadas como baseline.\n\n'+
+'Alçada de aprovação: '+LAST.sla1+'. Solicito retorno em até 3 dias úteis para manter o ciclo de 20 dias até a ativação.';
+  document.getElementById('p-resumo').value=resumo;
+
+  document.getElementById('p-prox').innerHTML=
+    '<b>O que você (representante) faz agora:</b> 1. Encaminhe o resumo acima ao gestor comercial. '+
+    '2. Alinhe com o lojista as contrapartidas listadas, para o termo ser assinado sem atraso quando as aprovações saírem. '+
+    '3. Reserve a data de ativação'+(LAST.janela?' aproveitando a janela local ('+LAST.janela+')':'')+'. '+
+    '4. Após a ativação, suba as fotos do depois no mesmo protocolo: sem evidência, o cliente não recebe a próxima ação.';
+
+  document.getElementById('protocolo').style.display='block';
+  document.getElementById('protocolo').scrollIntoView({behavior:'smooth'});
+}
+function copiarResumo(){
+  const t=document.getElementById('p-resumo');
+  t.select();t.setSelectionRange(0,99999);
+  try{navigator.clipboard.writeText(t.value)}catch(e){document.execCommand('copy')}
+  const c=document.getElementById('p-copied');c.style.display='inline';
+  setTimeout(()=>c.style.display='none',2200);
+}
+</script>
+</body>
+</html>

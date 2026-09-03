@@ -1,0 +1,9 @@
+node_modules
+db
+.env
+public/uploads/*
+!public/uploads/.gitkeep
+*.log
+CLAUDE_SPEC.md
+docs
+scripts_atualiza_plataforma.py

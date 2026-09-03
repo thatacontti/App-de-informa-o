@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "representantes",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server/index.js"],
+      "cwd": "apps/representantes",
+      "port": 8080
+    }
+  ]
+}

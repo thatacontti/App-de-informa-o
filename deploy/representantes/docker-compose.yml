@@ -1,0 +1,52 @@
+# Stack de deploy · representantes.grupocatarina.com
+# Roda no Hostinger VPS. Independente do Painel V27.
+#
+#   cd deploy/representantes && ./deploy.sh
+#
+name: gc-representantes
+
+services:
+  representantes:
+    build:
+      context: ../../apps/representantes
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ../../apps/representantes/.env
+    environment:
+      NODE_ENV: production
+      PORT: "8080"
+      DB_PATH: /data/gc.sqlite
+      UPLOAD_DIR: /app/public/uploads
+      COOKIE_SECURE: "true"
+    volumes:
+      - gcrep-db:/data
+      - gcrep-uploads:/app/public/uploads
+      # PDFs de manuais/políticas (colocar os arquivos aqui no VPS):
+      - ./manuais:/app/public/manuais:ro
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8080/healthz"]
+      interval: 15s
+      timeout: 4s
+      retries: 5
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      representantes:
+        condition: service_healthy
+    volumes:
+      - ./nginx-representantes.conf:/etc/nginx/conf.d/default.conf:ro
+      # Certificados do certbot (host). Ver README seção "HTTPS".
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./certbot-www:/var/www/certbot
+    ports:
+      - "80:80"
+      - "443:443"
+
+volumes:
+  gcrep-db:
+  gcrep-uploads:
