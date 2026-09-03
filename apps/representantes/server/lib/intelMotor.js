@@ -415,6 +415,38 @@ export function dnaPorMarca(codcli, filtro = {}) {
   })).sort((a, b) => b.pecas - a.pecas);
 }
 
+// Pesquisa do cliente nas redes sociais / web — atalhos de busca pré-montados
+// (o representante abre num clique) + pistas do cadastro. NÃO faz scraping.
+export function pesquisaSocial(codcli) {
+  const c = idb.prepare('SELECT nome, fantasia, cidade, uf, cnpj, raw FROM clientes_ex WHERE codcli=?').get(String(codcli));
+  if (!c) return null;
+  let raw = {}; try { raw = JSON.parse(c.raw || '{}'); } catch { /* ignore */ }
+  const termo = (c.fantasia || c.nome || '').replace(/\bLTDA\b|\bME\b|\bEPP\b|\bEIRELI\b|- ?ME|\d{6,}/gi, '').trim();
+  const cidade = c.cidade || '';
+  const q = encodeURIComponent(`${termo} ${cidade}`.trim());
+  const emailDom = (raw.email || '').split('@')[1] || '';
+  const domGenerico = /gmail|hotmail|outlook|yahoo|bol|terra|uol|icloud|live/i.test(emailDom);
+  // Instagram só quando o cadastro explicita "instagram: handle".
+  const igm = `${raw.obs || ''} ${raw.obs2 || ''}`.match(/instagram[:\s@]+@?([a-z0-9._]{3,})/i);
+  return {
+    termo, cidade,
+    cadastro: {
+      site: raw.site || null,
+      email: raw.email || null,
+      dominio_marca: (emailDom && !domGenerico) ? emailDom : null,
+      instagram: igm ? igm[1] : null,
+      telefone: raw.telefone || raw.fone || null,
+    },
+    buscas: [
+      { label: 'Instagram', icon: '📷', url: `https://www.google.com/search?q=${encodeURIComponent(`site:instagram.com ${termo} ${cidade}`)}` },
+      { label: 'Google', icon: '🔎', url: `https://www.google.com/search?q=${q}` },
+      { label: 'Google Maps', icon: '📍', url: `https://www.google.com/maps/search/${q}` },
+      { label: 'Facebook', icon: '👍', url: `https://www.facebook.com/search/top?q=${q}` },
+      ...(c.cnpj ? [{ label: 'CNPJ (situação)', icon: '🏢', url: `https://www.google.com/search?q=${encodeURIComponent('CNPJ ' + c.cnpj)}` }] : []),
+    ],
+  };
+}
+
 // Ano de uma coleção (do catálogo: "VERÃO 2027 - PRIMAVERA" → 2027).
 function anoColecao(codigo) {
   const d = catDesc('colecao', codigo);

@@ -10,7 +10,7 @@ import { firebirdConfigurado, fbPing } from '../lib/firebirdClient.js';
 import {
   perfil360, perfilCliente, dnaCompra, clusters, recomendarColecao, recomendarPlano, simularPedido,
   perfilEstetico, perfilTextual, dnaPorMarca, tierUltimasColecoes, sazonalidadeHist, ultimaColecaoResumo, gradePadrao,
-  clientesSemelhantes,
+  pesquisaSocial, clientesSemelhantes,
 } from '../lib/intelMotor.js';
 import { colecoesPlano, imagemPlano, planoDisponivel } from '../lib/plano2027.js';
 
@@ -169,6 +169,7 @@ intel.get('/cliente/:codcli', resolverCodcli, podeVer, async (req, res) => {
       sazonalidade: sazonalidadeHist(codcli),
       ultima_colecao: ultimaColecaoResumo(codcli),
       grade_padrao: gradePadrao(codcli, filtro),
+      social: pesquisaSocial(codcli),
       estetica: perfilEstetico(codcli, filtro),
       // clientes semelhantes NÃO vão para a tela de diagnóstico (uso interno na
       // sugestão). Mantido fora conforme pedido.

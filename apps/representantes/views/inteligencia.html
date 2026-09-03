@@ -115,6 +115,9 @@ svg text{font-family:inherit}
     <div class="card" style="margin-top:16px"><h2>📝 Perfil de compra <small>leitura do histórico, aberta por marca</small></h2>
       <div id="perfilTexto"></div></div>
 
+    <div class="card" style="margin-top:16px"><h2>🌐 Pesquisar o cliente <small>amplie o repertório antes da visita</small></h2>
+      <div id="social"></div></div>
+
     <div class="grid g2">
       <div class="card"><h2>👤 Perfil 360°</h2><div id="perfil"></div></div>
       <div class="card"><h2>📈 Histórico e evolução <small>valor faturado por mês</small></h2>
@@ -283,6 +286,20 @@ function render(d){
     h+=pt.por_marca.map(m=>`<div style="border-left:4px solid ${MC[m.marca]||'#2563EB'};background:#f8fafc;border-radius:0 10px 10px 0;padding:10px 14px;margin:8px 0;font-size:.85rem;line-height:1.55">${m.texto}</div>`).join('');
     $('perfilTexto').innerHTML=h;
   } else $('perfilTexto').innerHTML='<div style="color:var(--mut);font-size:.85rem">Sem itens sincronizados para gerar o perfil.</div>';
+
+  // Pesquisa do cliente nas redes / web
+  const so=d.social;
+  if(so){
+    const cad=[];
+    if(so.cadastro.instagram)cad.push(`Instagram no cadastro: <a href="https://instagram.com/${esc(so.cadastro.instagram)}" target="_blank" rel="noopener">@${esc(so.cadastro.instagram)}</a>`);
+    if(so.cadastro.site)cad.push(`Site: <a href="${esc(so.cadastro.site.startsWith('http')?so.cadastro.site:'http://'+so.cadastro.site)}" target="_blank" rel="noopener">${esc(so.cadastro.site)}</a>`);
+    if(so.cadastro.dominio_marca)cad.push(`Domínio da marca: <b>${esc(so.cadastro.dominio_marca)}</b>`);
+    if(so.cadastro.email)cad.push(`E-mail: ${esc(so.cadastro.email)}`);
+    if(so.cadastro.telefone)cad.push(`Telefone: ${esc(so.cadastro.telefone)}`);
+    $('social').innerHTML=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:${cad.length?'12px':'0'}">`+
+      so.buscas.map(b=>`<a href="${esc(b.url)}" target="_blank" rel="noopener" class="btn ghost mini" style="text-decoration:none">${b.icon} ${esc(b.label)}</a>`).join('')+`</div>`+
+      (cad.length?`<div style="font-size:.8rem;color:#475569;line-height:1.7">${cad.join('<br>')}</div>`:'<div style="font-size:.75rem;color:var(--mut)">Sem redes/site no cadastro — use as buscas acima.</div>');
+  } else $('social').innerHTML='<div style="color:var(--mut);font-size:.8rem">—</div>';
 
   // Perfil único (linha histórica)
   const pc=d.perfil_cliente;
