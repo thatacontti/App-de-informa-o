@@ -285,7 +285,7 @@ export function dnaCompra(codcli, filtro = {}) {
     tam: {}, cor: {}, faixa: {}, tier: {}, mes: {}, colecaoPed: {},
   };
   let qtdTotal = 0, valorTotal = 0, comEstampa = 0;
-  const porPedido = {}, porProduto = {}, porPedProd = {}, produtosSet = new Set();
+  const porPedido = {}, porProduto = {}, porPedProd = {}, porRefCol = {}, produtosSet = new Set();
 
   for (const it of itens) {
     const q = Number(it.qtde || 0) + Number(it.faturado || 0);
@@ -307,6 +307,7 @@ export function dnaCompra(codcli, filtro = {}) {
     porPedido[it.numero] = (porPedido[it.numero] || 0) + q;
     porProduto[it.codigo] = (porProduto[it.codigo] || 0) + q * Number(it.preco || 0);
     porPedProd[`${it.numero}|${it.codigo}`] = (porPedProd[`${it.numero}|${it.codigo}`] || 0) + q;
+    porRefCol[`${it.codigo}|${it.ped_colecao}`] = (porRefCol[`${it.codigo}|${it.ped_colecao}`] || 0) + q;
     produtosSet.add(it.codigo);
   }
   if (!qtdTotal) return null;
@@ -349,6 +350,9 @@ export function dnaCompra(codcli, filtro = {}) {
     qtd_media_por_pedido: round1(qtdTotal / (qtdsPed.length || 1)),
     // Mediana de peças por produto dentro de um pedido — base da grade sugerida.
     qtd_tipica_por_produto: Math.max(Math.round(mediana(Object.values(porPedProd))), 1),
+    // Profundidade típica por REFERÊNCIA por COLEÇÃO (quanto o cliente compra de
+    // cada modelo numa coleção) — base realista da grade no simulador.
+    profundidade_ref: Math.max(Math.round(mediana(Object.values(porRefCol))), 1),
     ticket_medio_produto: round1(valorTotal / qtdTotal),
     sazonalidade: { por_mes: sazonal, pct_alto_verao: round1(verao) },
     pct_estampado: round1((comEstampa / qtdTotal) * 100),
@@ -1015,9 +1019,14 @@ export function simularPedido(codcli, col, { filtro = {} } = {}) {
     return { pr, faixa, sizes, comp, compat, camada, marca: pr.m, grupo: pr.grupo, tipo: pr.tp };
   });
 
-  // grade + quantidade sugerida por referência (do padrão do cliente).
+  // grade + quantidade sugerida por referência: base = profundidade REAL do
+  // cliente por referência/coleção (não a mediana por pedido), para o valor do
+  // pedido sugerido ser comparável à última coleção comprada.
+  const baseProf = Math.max(dna.profundidade_ref || dna.qtd_tipica_por_produto || 4, 1);
   const gradeRef = (sizes, preco) => {
-    const porSku = Math.min(Math.max(dna.qtd_tipica_por_produto || sizes.length, sizes.length || 1), (sizes.length || 1) * 3);
+    const nsz = sizes.length || 1;
+    // distribui a profundidade real do cliente pela grade do produto
+    const porSku = Math.max(baseProf, nsz);
     const pesos = sizes.map((t) => { const h = dna.distribuicao.tamanho.find((x) => x.chave === t); return { tam: t, peso: h ? h.pct : 0 }; });
     if (pesos.every((p) => p.peso === 0)) pesos.forEach((p) => { p.peso = 1; });
     const somaF = pesos.reduce((s, p) => s + p.peso, 0) || 1;

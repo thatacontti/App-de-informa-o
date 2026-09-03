@@ -388,8 +388,14 @@ function renderSimulador(){
     <div><div style="font-size:.66rem;color:var(--mut);text-transform:uppercase;letter-spacing:.5px">Afinidade moda</div><div style="font-size:1.15rem;font-weight:800">${cl.afinidade_moda}/100</div></div>
     <div><div style="font-size:.66rem;color:var(--mut);text-transform:uppercase;letter-spacing:.5px">Sensib. a preço</div><div style="font-size:1.15rem;font-weight:800">${esc(cl.sensibilidade_preco)}</div></div>
     <div><div style="font-size:.66rem;color:var(--mut);text-transform:uppercase;letter-spacing:.5px">Regra de composição</div><div style="font-size:1.15rem;font-weight:800">${esc(r.regra_crescimento)}</div><div style="font-size:.58rem;color:var(--mut)">histórico / expansão / moda</div></div>
-    ${r.pedido_anterior?`<div style="margin-left:auto;text-align:right"><div style="font-size:.66rem;color:var(--mut)">Última coleção comprada</div><div style="font-weight:700">${brl(r.pedido_anterior.valor)} · ${Math.round(r.pedido_anterior.pecas).toLocaleString('pt-BR')} pç</div></div>`:''}
-  </div></div>`;
+  </div>
+  ${r.pedido_anterior?`<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <span style="font-size:.66rem;color:var(--mut);text-transform:uppercase;letter-spacing:.5px">Última coleção comprada</span>
+    <b style="font-size:1.05rem">${esc(r.pedido_anterior.nome||'')}</b>
+    <span style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:3px 10px;font-weight:700">${brl(r.pedido_anterior.valor)}</span>
+    <span style="color:var(--mut);font-size:.8rem">${Math.round(r.pedido_anterior.pecas).toLocaleString('pt-BR')} peças</span>
+  </div>`:''}
+  </div>`;
 
   // três cartões-cenário (clicáveis)
   const cards=['ESSENCIAL','EVOLUCAO','CURADORIA'].map(k=>{
@@ -400,7 +406,7 @@ function renderSimulador(){
         ${c.recomendado?'<span style="font-size:.6rem;background:#059669;color:#fff;padding:2px 7px;border-radius:8px;font-weight:700">RECOMENDADO</span>':''}
       </div>
       <div style="font-size:.68rem;color:var(--mut);margin-bottom:8px">${esc(c.tier)} · ${esc(c.estrategia)}</div>
-      <div style="font-size:1.35rem;font-weight:800">${brl(c.valor)}</div>
+      <div style="font-size:1.35rem;font-weight:800">${brl(c.valor)}${(()=>{const a=r.pedido_anterior&&r.pedido_anterior.valor>0;if(!a)return '';const v=Math.round((c.valor-r.pedido_anterior.valor)/r.pedido_anterior.valor*100);return ` <span style="font-size:.66rem;font-weight:700;color:${v>=0?'#059669':'#dc2626'}">${v>=0?'+':''}${v}% vs última</span>`;})()}</div>
       <div style="font-size:.72rem;color:var(--mut)">${c.refs} refs · ${c.pecas.toLocaleString('pt-BR')} pç · PM R$ ${c.preco_medio}</div>
       <div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin:8px 0 4px">${c.mix_faixa.map(m=>`<div title="${m.chave} ${m.pct}%" style="width:${m.pct}%;background:${TIER_COR[m.chave]}"></div>`).join('')}</div>
       <div style="font-size:.6rem;color:var(--mut)">${c.mix_faixa.map(m=>m.chave[0]+' '+m.pct+'%').join(' · ')}</div>
